@@ -1,0 +1,228 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum Role {
+  ADMIN
+  REFEREE
+  TEAM_REP
+}
+
+enum TournamentFormatType {
+  LEAGUE_ONLY
+  KNOCKOUT_ONLY
+  GROUPS_THEN_KNOCKOUT
+}
+
+enum PhaseType {
+  ROUND_ROBIN
+  SINGLE_ELIMINATION
+}
+
+enum MatchStatus {
+  SCHEDULED
+  IN_PROGRESS
+  FINISHED
+  CANCELLED
+}
+
+enum SetStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+// ============================================================================
+// MODELS
+// ============================================================================
+
+model User {
+  id           Int      @id @default(autoincrement()) @db.UnsignedInt
+  name         String   @db.VarChar(150)
+  email        String   @unique @db.VarChar(150)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  role         Role
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+
+  assignedMatches Match[] @relation("RefereeMatches")
+
+  @@map("users")
+}
+
+model Tournament {
+  id                 Int                  @id @default(autoincrement()) @db.UnsignedInt
+  name               String               @db.VarChar(200)
+  formatType         TournamentFormatType @map("format_type")
+  maxTeams           Int                  @default(20) @map("max_teams") @db.UnsignedSmallInt
+  groupsCount        Int                  @default(2) @map("groups_count") @db.UnsignedTinyInt
+  maxSets            Int                  @default(3) @map("max_sets") @db.UnsignedTinyInt
+  pointsRegularSet   Int                  @default(25) @map("points_regular_set") @db.UnsignedTinyInt
+  pointsFinalSet     Int                  @default(15) @map("points_final_set") @db.UnsignedTinyInt
+  pointsDifference   Int                  @default(2) @map("points_difference") @db.UnsignedTinyInt
+  qualifiersPerGroup Int                  @default(2) @map("qualifiers_per_group") @db.UnsignedTinyInt
+  startDate          DateTime?            @map("start_date") @db.Date
+  endDate            DateTime?            @map("end_date") @db.Date
+  dailyStartHour     Int                  @default(8) @map("daily_start_hour") @db.UnsignedTinyInt
+  dailyEndHour       Int                  @default(18) @map("daily_end_hour") @db.UnsignedTinyInt
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamp(0)
+
+  teams   Team[]
+  phases  TournamentPhase[]
+  matches Match[]
+
+  @@map("tournaments")
+}
+
+model TournamentPhase {
+  id           Int       @id @default(autoincrement()) @db.UnsignedInt
+  tournamentId Int       @map("tournament_id") @db.UnsignedInt
+  name         String    @db.VarChar(100)
+  phaseOrder   Int       @map("phase_order") @db.UnsignedTinyInt
+  phaseType    PhaseType @map("phase_type")
+
+  tournament Tournament   @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  groups     PhaseGroup[]
+  matches    Match[]
+
+  @@map("tournament_phases")
+}
+
+model PhaseGroup {
+  id      Int    @id @default(autoincrement()) @db.UnsignedInt
+  phaseId Int    @map("phase_id") @db.UnsignedInt
+  name    String @db.VarChar(50)
+
+  phase   TournamentPhase   @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  members TeamGroupMember[]
+
+  @@map("phase_groups")
+}
+
+model Team {
+  id           Int      @id @default(autoincrement()) @db.UnsignedInt
+  tournamentId Int?     @map("tournament_id") @db.UnsignedInt
+  name         String   @db.VarChar(150)
+  delegateName String?  @map("delegate_name") @db.VarChar(150)
+  logoUrl      String?  @map("logo_url") @db.VarChar(255)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+
+  tournament       Tournament?       @relation(fields: [tournamentId], references: [id], onDelete: SetNull)
+  players          Player[]
+  groupMemberships TeamGroupMember[]
+  homeMatches      Match[]           @relation("HomeTeamMatches")
+  awayMatches      Match[]           @relation("AwayTeamMatches")
+  wonMatches       Match[]           @relation("WinnerTeamMatches")
+  servingSets      MatchSet[]        @relation("ServingTeamSets")
+  wonSets          MatchSet[]        @relation("WinnerTeamSets")
+  setLineups       SetLineup[]
+
+  @@map("teams")
+}
+
+model TeamGroupMember {
+  id      Int @id @default(autoincrement()) @db.UnsignedInt
+  groupId Int @map("group_id") @db.UnsignedInt
+  teamId  Int @map("team_id") @db.UnsignedInt
+
+  group PhaseGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  team  Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("team_group_members")
+}
+
+model Player {
+  id           Int    @id @default(autoincrement()) @db.UnsignedInt
+  teamId       Int    @map("team_id") @db.UnsignedInt
+  firstName    String @map("first_name") @db.VarChar(100)
+  lastName     String @map("last_name") @db.VarChar(100)
+  jerseyNumber Int    @map("jersey_number") @db.UnsignedSmallInt
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  lineupPos1 SetLineup[] @relation("LineupPos1")
+  lineupPos2 SetLineup[] @relation("LineupPos2")
+  lineupPos3 SetLineup[] @relation("LineupPos3")
+  lineupPos4 SetLineup[] @relation("LineupPos4")
+  lineupPos5 SetLineup[] @relation("LineupPos5")
+  lineupPos6 SetLineup[] @relation("LineupPos6")
+
+  @@map("players")
+}
+
+model Match {
+  id           Int         @id @default(autoincrement()) @db.UnsignedInt
+  tournamentId Int         @map("tournament_id") @db.UnsignedInt
+  phaseId      Int         @map("phase_id") @db.UnsignedInt
+  homeTeamId   Int         @map("home_team_id") @db.UnsignedInt
+  awayTeamId   Int         @map("away_team_id") @db.UnsignedInt
+  refereeId    Int?        @map("referee_id") @db.UnsignedInt
+  scheduledAt  DateTime?   @map("scheduled_at") @db.DateTime(0)
+  courtNumber  String?     @map("court_number") @db.VarChar(120)
+  courtMapUrl  String?     @map("court_map_url") @db.VarChar(500)
+  status       MatchStatus @default(SCHEDULED)
+  homeSetsWon  Int         @default(0) @map("home_sets_won") @db.UnsignedTinyInt
+  awaySetsWon  Int         @default(0) @map("away_sets_won") @db.UnsignedTinyInt
+  winnerTeamId Int?        @map("winner_team_id") @db.UnsignedInt
+
+  tournament Tournament      @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  phase      TournamentPhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  homeTeam   Team            @relation("HomeTeamMatches", fields: [homeTeamId], references: [id])
+  awayTeam   Team            @relation("AwayTeamMatches", fields: [awayTeamId], references: [id])
+  referee    User?           @relation("RefereeMatches", fields: [refereeId], references: [id])
+  winnerTeam Team?           @relation("WinnerTeamMatches", fields: [winnerTeamId], references: [id])
+  sets       MatchSet[]
+
+  @@map("matches")
+}
+
+model MatchSet {
+  id            Int       @id @default(autoincrement()) @db.UnsignedInt
+  matchId       Int       @map("match_id") @db.UnsignedInt
+  setNumber     Int       @map("set_number") @db.UnsignedTinyInt
+  homeScore     Int       @default(0) @map("home_score") @db.UnsignedSmallInt
+  awayScore     Int       @default(0) @map("away_score") @db.UnsignedSmallInt
+  servingTeamId Int?      @map("serving_team_id") @db.UnsignedInt
+  status        SetStatus @default(NOT_STARTED)
+  winnerTeamId  Int?      @map("winner_team_id") @db.UnsignedInt
+
+  match       Match       @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  servingTeam Team?       @relation("ServingTeamSets", fields: [servingTeamId], references: [id])
+  winnerTeam  Team?       @relation("WinnerTeamSets", fields: [winnerTeamId], references: [id])
+  lineups     SetLineup[]
+
+  @@unique([matchId, setNumber])
+  @@map("match_sets")
+}
+
+model SetLineup {
+  id           Int @id @default(autoincrement()) @db.UnsignedInt
+  setId        Int @map("set_id") @db.UnsignedInt
+  teamId       Int @map("team_id") @db.UnsignedInt
+  pos1PlayerId Int @map("pos_1_player_id") @db.UnsignedInt
+  pos2PlayerId Int @map("pos_2_player_id") @db.UnsignedInt
+  pos3PlayerId Int @map("pos_3_player_id") @db.UnsignedInt
+  pos4PlayerId Int @map("pos_4_player_id") @db.UnsignedInt
+  pos5PlayerId Int @map("pos_5_player_id") @db.UnsignedInt
+  pos6PlayerId Int @map("pos_6_player_id") @db.UnsignedInt
+
+  matchSet   MatchSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+  team       Team     @relation(fields: [teamId], references: [id])
+  pos1Player Player   @relation("LineupPos1", fields: [pos1PlayerId], references: [id])
+  pos2Player Player   @relation("LineupPos2", fields: [pos2PlayerId], references: [id])
+  pos3Player Player   @relation("LineupPos3", fields: [pos3PlayerId], references: [id])
+  pos4Player Player   @relation("LineupPos4", fields: [pos4PlayerId], references: [id])
+  pos5Player Player   @relation("LineupPos5", fields: [pos5PlayerId], references: [id])
+  pos6Player Player   @relation("LineupPos6", fields: [pos6PlayerId], references: [id])
+
+  @@unique([setId, teamId])
+  @@map("set_lineups")
+}

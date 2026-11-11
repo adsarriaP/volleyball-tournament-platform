@@ -1,0 +1,10 @@
+{
+  "name": "VoleiLive Pro - Torneos de Voleibol",
+  "short_name": "VoleiLive",
+  "start_url": "/tournaments",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#f59e0b",
+  "orientation": "any"
+}
+
