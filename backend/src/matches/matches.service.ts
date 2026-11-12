@@ -54,6 +54,71 @@ export class MatchesService {
   }
 
   /**
+   * Permite al Administrador corregir manualmente el resultado de un partido:
+   * Sets ganados por cada equipo, ganador y estado final (FINISHED / SCHEDULED / IN_PROGRESS).
+   */
+  public async updateMatchResult(
+    matchId: number,
+    input: {
+      homeSetsWon?: number;
+      awaySetsWon?: number;
+      winnerTeamId?: number | null;
+      status?: MatchStatus;
+      sets?: { setNumber: number; homeScore: number; awayScore: number }[];
+    },
+  ) {
+    const match = await this.prisma.match.findUnique({
+      where: { id: matchId },
+      include: { sets: true },
+    });
+
+    if (!match) {
+      throw new NotFoundException(`El partido #${matchId} no existe.`);
+    }
+
+    if (input.sets && input.sets.length > 0) {
+      for (const s of input.sets) {
+        await this.prisma.matchSet.upsert({
+          where: {
+            matchId_setNumber: {
+              matchId,
+              setNumber: s.setNumber,
+            },
+          },
+          update: {
+            homeScore: s.homeScore,
+            awayScore: s.awayScore,
+            status: 'COMPLETED',
+          },
+          create: {
+            matchId,
+            setNumber: s.setNumber,
+            homeScore: s.homeScore,
+            awayScore: s.awayScore,
+            status: 'COMPLETED',
+          },
+        });
+      }
+    }
+
+    return this.prisma.match.update({
+      where: { id: matchId },
+      data: {
+        homeSetsWon: input.homeSetsWon !== undefined ? input.homeSetsWon : undefined,
+        awaySetsWon: input.awaySetsWon !== undefined ? input.awaySetsWon : undefined,
+        winnerTeamId: input.winnerTeamId !== undefined ? input.winnerTeamId : undefined,
+        status: input.status !== undefined ? input.status : undefined,
+      },
+      include: {
+        homeTeam: true,
+        awayTeam: true,
+        sets: { orderBy: { setNumber: 'asc' } },
+        referee: { select: { id: true, name: true, email: true } },
+      },
+    });
+  }
+
+  /**
    * Devuelve los partidos donde `refereeId == currentUser.id`
    * y `status IN ('SCHEDULED', 'IN_PROGRESS')`.
    */

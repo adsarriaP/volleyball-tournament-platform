@@ -43,4 +43,42 @@ export class LiveScoringController {
   ) {
     return this.liveScoringService.updateCourtPosition(dto, user);
   }
+
+  @Post('position-by-jersey')
+  @Roles(Role.REFEREE, Role.ADMIN)
+  async updateCourtPositionByJersey(
+    @Body()
+    dto: {
+      matchId: number;
+      setId: number;
+      teamId: number;
+      positionNumber: number;
+      jerseyNumber: number;
+    },
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.liveScoringService.updateCourtPositionByJersey(dto, user);
+  }
+
+  @Post('finish-set')
+  @Roles(Role.REFEREE, Role.ADMIN)
+  async finishSet(
+    @Body() dto: { matchId: number; setId: number },
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.liveScoringService.finishSetManually(
+      dto.matchId,
+      dto.setId,
+      user,
+    );
+  }
+
+  @Post('finish-match')
+  @Roles(Role.REFEREE, Role.ADMIN)
+  async finishMatch(
+    @Body() dto: { matchId: number },
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.liveScoringService.finishMatchManually(dto.matchId, user);
+  }
 }

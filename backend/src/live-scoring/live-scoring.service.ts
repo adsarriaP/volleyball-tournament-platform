@@ -444,4 +444,153 @@ export class LiveScoringService {
 
     return liveState;
   }
+
+  /**
+   * Permite al árbitro digitar directamente el número de dorsal (#número)
+   * de un jugador para colocarlo en la posición P1 a P6 de la cancha.
+   * Si no existe un jugador registrado con ese dorsal, lo crea automáticamente.
+   */
+  public async updateCourtPositionByJersey(
+    dto: {
+      matchId: number;
+      setId: number;
+      teamId: number;
+      positionNumber: number;
+      jerseyNumber: number;
+    },
+    currentUser: AuthenticatedUser,
+  ) {
+    const match = await this.prisma.match.findUnique({
+      where: { id: dto.matchId },
+    });
+    if (!match) {
+      throw new NotFoundException(`El partido #${dto.matchId} no existe.`);
+    }
+
+    const isAdmin = currentUser.role === Role.ADMIN;
+    const isAssignedReferee =
+      currentUser.role === Role.REFEREE && match.refereeId === currentUser.id;
+    if (!isAdmin && !isAssignedReferee) {
+      throw new ForbiddenException('No tienes permisos para modificar la cancha.');
+    }
+
+    let player = await this.prisma.player.findFirst({
+      where: {
+        teamId: dto.teamId,
+        jerseyNumber: dto.jerseyNumber,
+      },
+    });
+
+    if (!player) {
+      player = await this.prisma.player.create({
+        data: {
+          teamId: dto.teamId,
+          jerseyNumber: dto.jerseyNumber,
+          firstName: `Jugador #${dto.jerseyNumber}`,
+          lastName: '',
+        },
+      });
+    }
+
+    return this.updateCourtPosition(
+      {
+        matchId: dto.matchId,
+        setId: dto.setId,
+        teamId: dto.teamId,
+        positionNumber: dto.positionNumber,
+        playerId: player.id,
+      },
+      currentUser,
+    );
+  }
+
+  /**
+   * Permite al juez o administrador dar por finalizado el set actual.
+   */
+  public async finishSetManually(
+    matchId: number,
+    setId: number,
+    currentUser: AuthenticatedUser,
+  ) {
+    const currentSet = await this.prisma.matchSet.findUnique({
+      where: { id: setId },
+      include: { match: true },
+    });
+    if (!currentSet) throw new NotFoundException('El set no existe.');
+
+    const winnerTeamId =
+      currentSet.homeScore > currentSet.awayScore
+        ? currentSet.match.homeTeamId
+        : currentSet.match.awayTeamId;
+
+    await this.prisma.matchSet.update({
+      where: { id: setId },
+      data: {
+        status: SetStatus.COMPLETED,
+        winnerTeamId,
+      },
+    });
+
+    const isHomeWinner = winnerTeamId === currentSet.match.homeTeamId;
+    const updatedHomeSetsWon = currentSet.match.homeSetsWon + (isHomeWinner ? 1 : 0);
+    const updatedAwaySetsWon = currentSet.match.awaySetsWon + (!isHomeWinner ? 1 : 0);
+
+    await this.prisma.match.update({
+      where: { id: matchId },
+      data: {
+        homeSetsWon: updatedHomeSetsWon,
+        awaySetsWon: updatedAwaySetsWon,
+      },
+    });
+
+    const liveState = await this.matchesService.getMatchLivePayload(matchId);
+    this.liveScoringGateway.server
+      .to(this.liveScoringGateway.getRoomName(matchId))
+      .emit('matchScoreUpdated', {
+        ...liveState,
+        didServeChange: false,
+        rotatedTeamId: null,
+      });
+
+    return liveState;
+  }
+
+  /**
+   * Permite al juez o admin dar por terminado el partido completo.
+   */
+  public async finishMatchManually(
+    matchId: number,
+    currentUser: AuthenticatedUser,
+  ) {
+    const match = await this.prisma.match.findUnique({
+      where: { id: matchId },
+    });
+    if (!match) throw new NotFoundException('El partido no existe.');
+
+    const winnerTeamId =
+      match.homeSetsWon > match.awaySetsWon
+        ? match.homeTeamId
+        : match.awaySetsWon > match.homeSetsWon
+          ? match.awayTeamId
+          : null;
+
+    await this.prisma.match.update({
+      where: { id: matchId },
+      data: {
+        status: MatchStatus.FINISHED,
+        winnerTeamId,
+      },
+    });
+
+    const liveState = await this.matchesService.getMatchLivePayload(matchId);
+    this.liveScoringGateway.server
+      .to(this.liveScoringGateway.getRoomName(matchId))
+      .emit('matchScoreUpdated', {
+        ...liveState,
+        matchStatus: MatchStatus.FINISHED,
+        winnerTeamId,
+      });
+
+    return liveState;
+  }
 }

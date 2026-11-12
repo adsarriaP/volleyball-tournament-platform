@@ -28,6 +28,7 @@ export const RefereeScoringPage: React.FC = () => {
     posNumber: number;
     currentPlayer?: Player;
   } | null>(null);
+  const [directJerseyInput, setDirectJerseyInput] = useState<string>('');
 
   const {
     liveData,
