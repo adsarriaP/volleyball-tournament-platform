@@ -24,3 +24,4 @@ export class UpdateCourtPositionDto {
   @IsInt()
   playerId!: number;
 }
+
