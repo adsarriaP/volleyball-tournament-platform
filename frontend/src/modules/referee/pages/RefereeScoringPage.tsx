@@ -94,6 +94,85 @@ export const RefereeScoringPage: React.FC = () => {
     onSuccess: (updated) => {
       setInitialData(updated);
       setEditingPosition(null);
+      setDirectJerseyInput('');
+      void refetch();
+    },
+    onError: (err: Error) => {
+      setErrorBanner(err.message);
+    },
+  });
+
+  const updatePositionByJerseyMutation = useMutation({
+    mutationFn: async ({
+      positionNumber,
+      jerseyNumber,
+      teamId,
+    }: {
+      positionNumber: number;
+      jerseyNumber: number;
+      teamId: number;
+    }) => {
+      setErrorBanner(null);
+      if (!activeMatch?.currentSet?.id) {
+        throw new Error('No hay un set en curso para modificar la posición.');
+      }
+      return apiFetch<MatchLivePayload>('/live-scoring/position-by-jersey', {
+        method: 'POST',
+        body: JSON.stringify({
+          matchId: numericMatchId,
+          setId: activeMatch.currentSet.id,
+          teamId,
+          positionNumber,
+          jerseyNumber,
+        }),
+      });
+    },
+    onSuccess: (updated) => {
+      setInitialData(updated);
+      setEditingPosition(null);
+      setDirectJerseyInput('');
+      void refetch();
+    },
+    onError: (err: Error) => {
+      setErrorBanner(err.message);
+    },
+  });
+
+  const finishSetMutation = useMutation({
+    mutationFn: async () => {
+      setErrorBanner(null);
+      if (!activeMatch?.currentSet?.id) {
+        throw new Error('No hay un set activo para finalizar.');
+      }
+      return apiFetch<MatchLivePayload>('/live-scoring/finish-set', {
+        method: 'POST',
+        body: JSON.stringify({
+          matchId: numericMatchId,
+          setId: activeMatch.currentSet.id,
+        }),
+      });
+    },
+    onSuccess: (updated) => {
+      if (updated) setInitialData(updated);
+      void refetch();
+    },
+    onError: (err: Error) => {
+      setErrorBanner(err.message);
+    },
+  });
+
+  const finishMatchMutation = useMutation({
+    mutationFn: async () => {
+      setErrorBanner(null);
+      return apiFetch<MatchLivePayload>('/live-scoring/finish-match', {
+        method: 'POST',
+        body: JSON.stringify({
+          matchId: numericMatchId,
+        }),
+      });
+    },
+    onSuccess: (updated) => {
+      if (updated) setInitialData(updated);
       void refetch();
     },
     onError: (err: Error) => {
@@ -265,9 +344,18 @@ export const RefereeScoringPage: React.FC = () => {
       <RefereeScoreboardControl
         match={activeMatch}
         isScoring={scorePointMutation.isPending}
+        isMutatingState={
+          finishSetMutation.isPending || finishMatchMutation.isPending
+        }
         onScorePoint={(teamId) => scorePointMutation.mutate(teamId)}
         onOpenLineupModal={() => setIsLineupModalOpen(true)}
         onToggleSwapSides={() => setIsSidesSwapped((prev) => !prev)}
+        onFinishSet={() => finishSetMutation.mutate()}
+        onEnableThirdSet={() => {
+          setSetNumberToStart(activeMatch.tournament?.maxSets ?? 3);
+          setIsLineupModalOpen(true);
+        }}
+        onFinishMatch={() => finishMatchMutation.mutate()}
       />
 
       {/* Cancha Interactiva 2D con Rotación Horaria (1 -> 6 -> 5 -> 4 -> 3 -> 2 -> 1) */}
@@ -284,6 +372,9 @@ export const RefereeScoringPage: React.FC = () => {
             teamId === activeMatch.homeTeam.id
               ? activeMatch.homeTeam.name
               : activeMatch.awayTeam.name;
+          setDirectJerseyInput(
+            currentPlayer ? String(currentPlayer.jerseyNumber) : '',
+          );
           setEditingPosition({
             teamId,
             teamName,
@@ -447,9 +538,52 @@ export const RefereeScoringPage: React.FC = () => {
               </button>
             </div>
 
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const parsedJersey = Number(directJerseyInput);
+                if (!Number.isInteger(parsedJersey) || parsedJersey <= 0) {
+                  setErrorBanner('Ingresa un número de dorsal válido (mayor a 0).');
+                  return;
+                }
+                updatePositionByJerseyMutation.mutate({
+                  positionNumber: editingPosition.posNumber,
+                  jerseyNumber: parsedJersey,
+                  teamId: editingPosition.teamId,
+                });
+              }}
+              className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-2"
+            >
+              <label className="block text-[11px] font-black uppercase tracking-wider text-yellow-400">
+                Digitar Dorsal Directo (Sustitución en Vivo)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={99}
+                  required
+                  value={directJerseyInput}
+                  onChange={(e) => setDirectJerseyInput(e.target.value)}
+                  placeholder="Ej. 8"
+                  className="w-28 px-3 py-2.5 rounded-xl bg-zinc-900 border border-zinc-700 text-lg font-black text-center text-white focus:border-yellow-400 outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={updatePositionByJerseyMutation.isPending}
+                  className="flex-1 py-3 px-4 rounded-xl text-xs font-black bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 text-zinc-950 transition"
+                >
+                  {updatePositionByJerseyMutation.isPending
+                    ? 'Aplicando...'
+                    : `Asignar #${directJerseyInput || '?'} a P${editingPosition.posNumber}`}
+                </button>
+              </div>
+            </form>
+
             <p className="text-xs text-zinc-400">
-              Selecciona el jugador que ocupará la posición P{editingPosition.posNumber}{' '}
-              en la rotación actual:
+              O selecciona un jugador de la plantilla para la posición P
+              {editingPosition.posNumber}:
             </p>
 
             <div className="space-y-1.5 max-h-60 overflow-y-auto">

@@ -1,5 +1,7 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
+import { Type } from 'class-transformer';
+import { IsInt, IsPositive, Max, Min } from 'class-validator';
 import {
   AuthenticatedUser,
   CurrentUser,
@@ -11,6 +13,53 @@ import { ScorePointDto } from './dto/score-point.dto';
 import { StartSetDto } from './dto/start-set.dto';
 import { UpdateCourtPositionDto } from './dto/update-court-position.dto';
 import { LiveScoringService } from './live-scoring.service';
+
+export class UpdateCourtPositionByJerseyDto {
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  matchId!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  setId!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  teamId!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(6)
+  positionNumber!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  jerseyNumber!: number;
+}
+
+export class FinishSetDto {
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  matchId!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  setId!: number;
+}
+
+export class FinishMatchDto {
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  matchId!: number;
+}
 
 @Controller('live-scoring')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -47,14 +96,7 @@ export class LiveScoringController {
   @Post('position-by-jersey')
   @Roles(Role.REFEREE, Role.ADMIN)
   async updateCourtPositionByJersey(
-    @Body()
-    dto: {
-      matchId: number;
-      setId: number;
-      teamId: number;
-      positionNumber: number;
-      jerseyNumber: number;
-    },
+    @Body() dto: UpdateCourtPositionByJerseyDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.liveScoringService.updateCourtPositionByJersey(dto, user);
@@ -63,7 +105,7 @@ export class LiveScoringController {
   @Post('finish-set')
   @Roles(Role.REFEREE, Role.ADMIN)
   async finishSet(
-    @Body() dto: { matchId: number; setId: number },
+    @Body() dto: FinishSetDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.liveScoringService.finishSetManually(
@@ -76,7 +118,7 @@ export class LiveScoringController {
   @Post('finish-match')
   @Roles(Role.REFEREE, Role.ADMIN)
   async finishMatch(
-    @Body() dto: { matchId: number },
+    @Body() dto: FinishMatchDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.liveScoringService.finishMatchManually(dto.matchId, user);

@@ -132,8 +132,25 @@ export class TeamsController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
-  async updateTeam(@Param('id', ParseIntPipe) id: number, @Body() dto: any) {
-    return this.teamsService.updateTeam(id, dto);
+  @UseInterceptors(
+    FileInterceptor('logo', {
+      storage: teamLogoStorage,
+    }),
+  )
+  async updateTeam(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateTeamDto,
+    @UploadedFile() file?: { filename: string },
+  ) {
+    const savedLogoPath = file
+      ? `/uploads/teams/${file.filename}`
+      : dto.logoUrl;
+
+    return this.teamsService.updateTeam(id, {
+      name: dto.name,
+      delegateName: dto.delegateName,
+      logoUrl: savedLogoPath,
+    });
   }
 
   @Delete(':id')

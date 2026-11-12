@@ -8,9 +8,17 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { MatchStatus, Role } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 import {
   AuthenticatedUser,
   CurrentUser,
@@ -37,6 +45,52 @@ export class ScheduleMatchDto {
   @Type(() => Number)
   @IsInt()
   refereeId?: number | null;
+}
+
+export class SetScoreInputDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  setNumber!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  homeScore!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  awayScore!: number;
+}
+
+export class UpdateMatchResultDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  homeSetsWon?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  awaySetsWon?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  winnerTeamId?: number | null;
+
+  @IsOptional()
+  @IsEnum(MatchStatus)
+  status?: MatchStatus;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SetScoreInputDto)
+  sets?: SetScoreInputDto[];
 }
 
 @Controller('matches')
@@ -84,7 +138,7 @@ export class MatchesController {
   @Roles(Role.ADMIN)
   async updateMatchResult(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: any,
+    @Body() dto: UpdateMatchResultDto,
   ) {
     return this.matchesService.updateMatchResult(id, dto);
   }

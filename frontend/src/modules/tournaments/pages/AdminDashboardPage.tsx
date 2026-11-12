@@ -4,15 +4,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Calendar,
   CheckCircle2,
+  Edit3,
   ExternalLink,
   ImagePlus,
   MapPin,
+  Pencil,
   Play,
   Plus,
   Search,
   ShieldAlert,
+  Trash2,
   Trophy,
-  UserCheck,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -78,6 +80,30 @@ export const AdminDashboardPage: React.FC = () => {
       }
     >
   >({});
+
+  // 5. Modales de Edición (Equipos, Jueces y Resultado de Partido)
+  const [editingTeam, setEditingTeam] = useState<{
+    id: number;
+    name: string;
+    delegateName: string;
+    logoFile: File | null;
+  } | null>(null);
+
+  const [editingReferee, setEditingReferee] = useState<{
+    id: number;
+    name: string;
+    email: string;
+    password: string;
+  } | null>(null);
+
+  const [editingMatchResult, setEditingMatchResult] = useState<{
+    match: MatchSummary;
+    homeSetsWon: number;
+    awaySetsWon: number;
+    status: MatchSummary['status'];
+    winnerTeamId: string;
+    sets: { setNumber: number; homeScore: number; awayScore: number }[];
+  } | null>(null);
 
   const { data: tournaments } = useQuery<TournamentWithMatches[]>({
     queryKey: ['tournaments-list'],
@@ -303,6 +329,112 @@ export const AdminDashboardPage: React.FC = () => {
     },
     onSuccess: () => {
       setFeedback('Partido actualizado (Cancha, Mapa y Juez guardados).');
+      void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
+    },
+    onError: (err: Error) => setErrorMsg(err.message),
+  });
+
+  const updateTeamMutation = useMutation({
+    mutationFn: () => {
+      if (!editingTeam) throw new Error('No hay equipo seleccionado.');
+      setErrorMsg(null);
+      const formData = new FormData();
+      formData.append('name', editingTeam.name.trim());
+      formData.append('delegateName', editingTeam.delegateName.trim());
+      if (editingTeam.logoFile) {
+        formData.append('logo', editingTeam.logoFile);
+      }
+      return apiFetch(`/teams/${editingTeam.id}`, {
+        method: 'PATCH',
+        body: formData,
+      });
+    },
+    onSuccess: () => {
+      setEditingTeam(null);
+      setFeedback('Equipo actualizado correctamente.');
+      void queryClient.invalidateQueries({
+        queryKey: ['admin-teams-tournament', numericSelectedTournamentId],
+      });
+      void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
+    },
+    onError: (err: Error) => setErrorMsg(err.message),
+  });
+
+  const deleteTeamMutation = useMutation({
+    mutationFn: (teamId: number) => {
+      setErrorMsg(null);
+      return apiFetch(`/teams/${teamId}`, { method: 'DELETE' });
+    },
+    onSuccess: () => {
+      setFeedback('Equipo eliminado correctamente.');
+      void queryClient.invalidateQueries({
+        queryKey: ['admin-teams-tournament', numericSelectedTournamentId],
+      });
+      void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
+    },
+    onError: (err: Error) => setErrorMsg(err.message),
+  });
+
+  const updateRefereeMutation = useMutation({
+    mutationFn: () => {
+      if (!editingReferee) throw new Error('No hay juez seleccionado.');
+      setErrorMsg(null);
+      const payload: { name: string; email: string; password?: string } = {
+        name: editingReferee.name.trim(),
+        email: editingReferee.email.trim(),
+      };
+      if (editingReferee.password.trim()) {
+        payload.password = editingReferee.password.trim();
+      }
+      return apiFetch(`/auth/referees/${editingReferee.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      });
+    },
+    onSuccess: () => {
+      setEditingReferee(null);
+      setFeedback('Juez actualizado correctamente.');
+      void queryClient.invalidateQueries({ queryKey: ['admin-referees'] });
+      void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
+    },
+    onError: (err: Error) => setErrorMsg(err.message),
+  });
+
+  const deleteRefereeMutation = useMutation({
+    mutationFn: (refereeId: number) => {
+      setErrorMsg(null);
+      return apiFetch(`/auth/referees/${refereeId}`, { method: 'DELETE' });
+    },
+    onSuccess: () => {
+      setFeedback('Juez eliminado correctamente.');
+      void queryClient.invalidateQueries({ queryKey: ['admin-referees'] });
+      void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
+    },
+    onError: (err: Error) => setErrorMsg(err.message),
+  });
+
+  const updateMatchResultMutation = useMutation({
+    mutationFn: () => {
+      if (!editingMatchResult) {
+        throw new Error('No hay partido seleccionado.');
+      }
+      setErrorMsg(null);
+      return apiFetch(`/matches/${editingMatchResult.match.id}/result`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          homeSetsWon: editingMatchResult.homeSetsWon,
+          awaySetsWon: editingMatchResult.awaySetsWon,
+          status: editingMatchResult.status,
+          winnerTeamId: editingMatchResult.winnerTeamId
+            ? Number(editingMatchResult.winnerTeamId)
+            : null,
+          sets: editingMatchResult.sets,
+        }),
+      });
+    },
+    onSuccess: () => {
+      setEditingMatchResult(null);
+      setFeedback('Resultado / Marcador del partido corregido exitosamente.');
       void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
     },
     onError: (err: Error) => setErrorMsg(err.message),
@@ -662,9 +794,43 @@ export const AdminDashboardPage: React.FC = () => {
                               {t.name}
                             </span>
                           </div>
-                          <span className="text-[10px] text-zinc-400 shrink-0 ml-2">
-                            Del: {t.delegateName || 'N/A'}
-                          </span>
+                          <div className="flex items-center gap-2 shrink-0 ml-2">
+                            <span className="text-[10px] text-zinc-400">
+                              Del: {t.delegateName || 'N/A'}
+                            </span>
+                            <button
+                              type="button"
+                              title="Editar equipo"
+                              onClick={() =>
+                                setEditingTeam({
+                                  id: t.id,
+                                  name: t.name,
+                                  delegateName: t.delegateName ?? '',
+                                  logoFile: null,
+                                })
+                              }
+                              className="p-1 rounded-md bg-zinc-900 hover:bg-yellow-400 text-zinc-300 hover:text-zinc-950 transition"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              title="Eliminar equipo"
+                              disabled={deleteTeamMutation.isPending}
+                              onClick={() => {
+                                if (
+                                  window.confirm(
+                                    `¿Eliminar al equipo "${t.name}"? Esta acción no se puede deshacer.`,
+                                  )
+                                ) {
+                                  deleteTeamMutation.mutate(t.id);
+                                }
+                              }}
+                              className="p-1 rounded-md bg-zinc-900 hover:bg-rose-500 text-zinc-300 hover:text-white transition"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                       );
                     })
@@ -725,10 +891,50 @@ export const AdminDashboardPage: React.FC = () => {
               {referees?.map((r) => (
                 <div
                   key={r.id}
-                  className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800"
+                  className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800"
                 >
-                  <span className="text-white font-semibold">{r.name}</span>
-                  <span>{r.email}</span>
+                  <div className="truncate">
+                    <span className="text-white font-semibold block truncate">
+                      {r.name}
+                    </span>
+                    <span className="text-[10px] text-zinc-400 truncate block">
+                      {r.email}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      title="Editar juez"
+                      onClick={() =>
+                        setEditingReferee({
+                          id: r.id,
+                          name: r.name,
+                          email: r.email,
+                          password: '',
+                        })
+                      }
+                      className="p-1 rounded-md bg-zinc-900 hover:bg-yellow-400 text-zinc-300 hover:text-zinc-950 transition"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      title="Eliminar juez"
+                      disabled={deleteRefereeMutation.isPending}
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `¿Eliminar al juez "${r.name}"?`,
+                          )
+                        ) {
+                          deleteRefereeMutation.mutate(r.id);
+                        }
+                      }}
+                      className="p-1 rounded-md bg-zinc-900 hover:bg-rose-500 text-zinc-300 hover:text-white transition"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -938,13 +1144,48 @@ export const AdminDashboardPage: React.FC = () => {
                                 </select>
                               </td>
                               <td className="py-2.5 px-2 text-right">
-                                <button
-                                  type="button"
-                                  onClick={() => scheduleMatchMutation.mutate(m)}
-                                  className="px-3 py-1.5 rounded-lg font-black bg-yellow-400 hover:bg-yellow-300 text-zinc-950 transition"
-                                >
-                                  Guardar
-                                </button>
+                                <div className="inline-flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setEditingMatchResult({
+                                        match: m,
+                                        homeSetsWon: m.homeSetsWon,
+                                        awaySetsWon: m.awaySetsWon,
+                                        status: m.status,
+                                        winnerTeamId: m.winnerTeamId
+                                          ? String(m.winnerTeamId)
+                                          : '',
+                                        sets:
+                                          m.sets && m.sets.length > 0
+                                            ? m.sets.map((s) => ({
+                                                setNumber: s.setNumber,
+                                                homeScore: s.homeScore,
+                                                awayScore: s.awayScore,
+                                              }))
+                                            : [
+                                                {
+                                                  setNumber: 1,
+                                                  homeScore: 0,
+                                                  awayScore: 0,
+                                                },
+                                              ],
+                                      })
+                                    }
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition"
+                                    title="Corregir Marcador / Resultado"
+                                  >
+                                    <Edit3 className="w-3 h-3 text-yellow-400" />
+                                    Marcador
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => scheduleMatchMutation.mutate(m)}
+                                    className="px-3 py-1.5 rounded-lg font-black bg-yellow-400 hover:bg-yellow-300 text-zinc-950 transition"
+                                  >
+                                    Guardar
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -958,6 +1199,409 @@ export const AdminDashboardPage: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* Modal: Editar Equipo */}
+      {editingTeam && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              updateTeamMutation.mutate();
+            }}
+            className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-900 p-6 space-y-4 shadow-2xl"
+          >
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-base font-black text-white">
+                Editar Equipo
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingTeam(null)}
+                className="text-xs text-zinc-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">
+                  Nombre del Equipo
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editingTeam.name}
+                  onChange={(e) =>
+                    setEditingTeam({ ...editingTeam, name: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">
+                  Delegado del Equipo
+                </label>
+                <input
+                  type="text"
+                  value={editingTeam.delegateName}
+                  onChange={(e) =>
+                    setEditingTeam({
+                      ...editingTeam,
+                      delegateName: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">
+                  Cambiar Escudo (Opcional)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) =>
+                    setEditingTeam({
+                      ...editingTeam,
+                      logoFile: e.target.files?.[0] ?? null,
+                    })
+                  }
+                  className="w-full text-xs text-zinc-300"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingTeam(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-800 text-zinc-300"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={updateTeamMutation.isPending}
+                className="px-4 py-2 rounded-xl text-xs font-black bg-yellow-400 hover:bg-yellow-300 text-zinc-950 transition"
+              >
+                {updateTeamMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Modal: Editar Juez */}
+      {editingReferee && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              updateRefereeMutation.mutate();
+            }}
+            className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-900 p-6 space-y-4 shadow-2xl"
+          >
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-base font-black text-white">
+                Editar Juez
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingReferee(null)}
+                className="text-xs text-zinc-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">
+                  Nombre Completo
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editingReferee.name}
+                  onChange={(e) =>
+                    setEditingReferee({
+                      ...editingReferee,
+                      name: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">
+                  Correo Electrónico
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={editingReferee.email}
+                  onChange={(e) =>
+                    setEditingReferee({
+                      ...editingReferee,
+                      email: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">
+                  Nueva Contraseña (dejar vacío para mantener la actual)
+                </label>
+                <input
+                  type="password"
+                  minLength={4}
+                  value={editingReferee.password}
+                  onChange={(e) =>
+                    setEditingReferee({
+                      ...editingReferee,
+                      password: e.target.value,
+                    })
+                  }
+                  placeholder="Opcional"
+                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingReferee(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-800 text-zinc-300"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={updateRefereeMutation.isPending}
+                className="px-4 py-2 rounded-xl text-xs font-black bg-yellow-400 hover:bg-yellow-300 text-zinc-950 transition"
+              >
+                {updateRefereeMutation.isPending
+                  ? 'Guardando...'
+                  : 'Guardar Cambios'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Modal: Corregir Marcador / Resultado del Partido */}
+      {editingMatchResult && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              updateMatchResultMutation.mutate();
+            }}
+            className="w-full max-w-lg rounded-3xl border border-zinc-800 bg-zinc-900 p-6 space-y-4 shadow-2xl"
+          >
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-yellow-400">
+                  Corrección Oficial de Marcador
+                </span>
+                <h3 className="text-base font-black text-white">
+                  {editingMatchResult.match.homeTeam.name} vs{' '}
+                  {editingMatchResult.match.awayTeam.name}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingMatchResult(null)}
+                className="text-xs text-zinc-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">
+                  Sets Ganados ({editingMatchResult.match.homeTeam.name})
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={5}
+                  value={editingMatchResult.homeSetsWon}
+                  onChange={(e) =>
+                    setEditingMatchResult({
+                      ...editingMatchResult,
+                      homeSetsWon: Number(e.target.value),
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-sm font-black text-center text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">
+                  Sets Ganados ({editingMatchResult.match.awayTeam.name})
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={5}
+                  value={editingMatchResult.awaySetsWon}
+                  onChange={(e) =>
+                    setEditingMatchResult({
+                      ...editingMatchResult,
+                      awaySetsWon: Number(e.target.value),
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-sm font-black text-center text-white"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">
+                  Estado del Partido
+                </label>
+                <select
+                  value={editingMatchResult.status}
+                  onChange={(e) =>
+                    setEditingMatchResult({
+                      ...editingMatchResult,
+                      status: e.target.value as MatchSummary['status'],
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white"
+                >
+                  <option value="SCHEDULED">SCHEDULED (Programado)</option>
+                  <option value="IN_PROGRESS">IN_PROGRESS (En Curso)</option>
+                  <option value="FINISHED">FINISHED (Finalizado)</option>
+                  <option value="CANCELLED">CANCELLED (Cancelado)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">
+                  Equipo Ganador
+                </label>
+                <select
+                  value={editingMatchResult.winnerTeamId}
+                  onChange={(e) =>
+                    setEditingMatchResult({
+                      ...editingMatchResult,
+                      winnerTeamId: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white"
+                >
+                  <option value="">-- Sin Ganador --</option>
+                  <option value={editingMatchResult.match.homeTeam.id}>
+                    {editingMatchResult.match.homeTeam.name} (Local)
+                  </option>
+                  <option value={editingMatchResult.match.awayTeam.id}>
+                    {editingMatchResult.match.awayTeam.name} (Visitante)
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-zinc-800">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black uppercase text-zinc-400">
+                  Parciales por Set
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEditingMatchResult({
+                      ...editingMatchResult,
+                      sets: [
+                        ...editingMatchResult.sets,
+                        {
+                          setNumber: editingMatchResult.sets.length + 1,
+                          homeScore: 0,
+                          awayScore: 0,
+                        },
+                      ],
+                    })
+                  }
+                  className="text-[11px] font-bold text-yellow-400 hover:underline"
+                >
+                  + Agregar Set
+                </button>
+              </div>
+
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {editingMatchResult.sets.map((s, idx) => (
+                  <div
+                    key={s.setNumber}
+                    className="flex items-center gap-2 bg-zinc-950 p-2 rounded-xl border border-zinc-800"
+                  >
+                    <span className="text-xs font-bold text-zinc-400 w-14">
+                      Set {s.setNumber}:
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={s.homeScore}
+                      onChange={(e) => {
+                        const updatedSets = [...editingMatchResult.sets];
+                        updatedSets[idx] = {
+                          ...s,
+                          homeScore: Number(e.target.value),
+                        };
+                        setEditingMatchResult({
+                          ...editingMatchResult,
+                          sets: updatedSets,
+                        });
+                      }}
+                      className="w-20 px-2 py-1 rounded-lg bg-zinc-900 border border-zinc-700 text-xs font-bold text-center text-white"
+                    />
+                    <span className="text-xs text-zinc-500">-</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={s.awayScore}
+                      onChange={(e) => {
+                        const updatedSets = [...editingMatchResult.sets];
+                        updatedSets[idx] = {
+                          ...s,
+                          awayScore: Number(e.target.value),
+                        };
+                        setEditingMatchResult({
+                          ...editingMatchResult,
+                          sets: updatedSets,
+                        });
+                      }}
+                      className="w-20 px-2 py-1 rounded-lg bg-zinc-900 border border-zinc-700 text-xs font-bold text-center text-white"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingMatchResult(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-800 text-zinc-300"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={updateMatchResultMutation.isPending}
+                className="px-4 py-2 rounded-xl text-xs font-black bg-yellow-400 hover:bg-yellow-300 text-zinc-950 transition"
+              >
+                {updateMatchResultMutation.isPending
+                  ? 'Guardando...'
+                  : 'Guardar Resultado'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 };

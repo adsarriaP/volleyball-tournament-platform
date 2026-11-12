@@ -2,17 +2,24 @@ import React from 'react';
 import {
   AlertTriangle,
   ArrowLeftRight,
+  CheckSquare,
+  Flag,
   PlusCircle,
   Settings2,
+  Zap,
 } from 'lucide-react';
 import { MatchLivePayload } from '../../../shared/types/volleyball.types';
 
 interface RefereeScoreboardControlProps {
   match: MatchLivePayload;
   isScoring: boolean;
+  isMutatingState?: boolean;
   onScorePoint: (scoringTeamId: number) => void;
   onOpenLineupModal: () => void;
   onToggleSwapSides: () => void;
+  onFinishSet: () => void;
+  onEnableThirdSet: () => void;
+  onFinishMatch: () => void;
 }
 
 export const RefereeScoreboardControl: React.FC<
@@ -20,9 +27,13 @@ export const RefereeScoreboardControl: React.FC<
 > = ({
   match,
   isScoring,
+  isMutatingState = false,
   onScorePoint,
   onOpenLineupModal,
   onToggleSwapSides,
+  onFinishSet,
+  onEnableThirdSet,
+  onFinishMatch,
 }) => {
   const { homeTeam, awayTeam, currentSet, tournament, status } = match;
   const maxSets = tournament?.maxSets ?? 3;
@@ -132,6 +143,59 @@ export const RefereeScoreboardControl: React.FC<
           Para habilitar los botones de puntuación (+1), primero confirma las 6
           posiciones iniciales en cancha pulsando{' '}
           <strong>"Registrar Sexteto Inicial"</strong>.
+        </div>
+      )}
+
+      {/* Botones táctiles de control de Set y Partido */}
+      {status !== 'FINISHED' && (
+        <div className="pt-3 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <button
+            type="button"
+            disabled={
+              isMutatingState || currentSet?.status !== 'IN_PROGRESS'
+            }
+            onClick={() => {
+              if (
+                window.confirm(
+                  `¿Confirmas finalizar manualmente el Set ${currentSet?.setNumber ?? 1}?`,
+                )
+              ) {
+                onFinishSet();
+              }
+            }}
+            className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-xs font-black bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition"
+          >
+            <CheckSquare className="w-4 h-4 shrink-0" />
+            Finalizar Set Actual
+          </button>
+
+          <button
+            type="button"
+            disabled={isMutatingState || (currentSet?.setNumber ?? 1) >= maxSets}
+            onClick={onEnableThirdSet}
+            className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-xs font-black bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/40 text-sky-300 disabled:opacity-40 disabled:cursor-not-allowed transition"
+          >
+            <Zap className="w-4 h-4 shrink-0" />
+            Habilitar {maxSets}er Set (Desempate)
+          </button>
+
+          <button
+            type="button"
+            disabled={isMutatingState}
+            onClick={() => {
+              if (
+                window.confirm(
+                  '¿Confirmas dar por terminado el partido oficialmente ahora?',
+                )
+              ) {
+                onFinishMatch();
+              }
+            }}
+            className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-xs font-black bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 disabled:opacity-40 disabled:cursor-not-allowed transition"
+          >
+            <Flag className="w-4 h-4 shrink-0" />
+            Dar por Terminado el Partido
+          </button>
         </div>
       )}
     </div>
