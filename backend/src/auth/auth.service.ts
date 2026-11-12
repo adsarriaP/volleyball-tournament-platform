@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
   OnModuleInit,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -136,14 +137,33 @@ export class AuthService implements OnModuleInit {
     });
   }
 
-  async updateReferee(id: number, dto: CreateRefereeDto) {
-    const data: any = {
-      name: dto.name,
-      email: dto.email,
-    };
-    if (dto.password) {
-      data.passwordHash = this.hashPassword(dto.password);
+  async updateReferee(
+    id: number,
+    dto: { name: string; email: string; password?: string },
+  ) {
+    const existing = await this.prisma.user.findUnique({ where: { id } });
+    if (!existing || existing.role !== Role.REFEREE) {
+      throw new NotFoundException(`El juez #${id} no existe.`);
     }
+
+    const normalizedEmail = dto.email.trim().toLowerCase();
+    const emailOwner = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+    if (emailOwner && emailOwner.id !== id) {
+      throw new ConflictException(
+        `Ya existe otro usuario registrado con el correo ${normalizedEmail}.`,
+      );
+    }
+
+    const data: { name: string; email: string; passwordHash?: string } = {
+      name: dto.name.trim(),
+      email: normalizedEmail,
+    };
+    if (dto.password && dto.password.trim()) {
+      data.passwordHash = this.hashPassword(dto.password.trim());
+    }
+
     return this.prisma.user.update({
       where: { id },
       data,
@@ -152,7 +172,21 @@ export class AuthService implements OnModuleInit {
   }
 
   async deleteReferee(id: number) {
-    return this.prisma.user.delete({ where: { id } });
+    const existing = await this.prisma.user.findUnique({ where: { id } });
+    if (!existing || existing.role !== Role.REFEREE) {
+      throw new NotFoundException(`El juez #${id} no existe.`);
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.match.updateMany({
+        where: { refereeId: id },
+        data: { refereeId: null },
+      });
+      return tx.user.delete({
+        where: { id },
+        select: { id: true, name: true, email: true, role: true },
+      });
+    });
   }
 }
 

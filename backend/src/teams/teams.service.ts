@@ -152,18 +152,64 @@ export class TeamsService {
     });
   }
 
-  async updateTeam(id: number, input: { name?: string; delegateName?: string; logoUrl?: string }) {
+  async updateTeam(
+    id: number,
+    input: { name?: string; delegateName?: string; logoUrl?: string },
+  ) {
+    const existing = await this.findTeamById(id);
+    const trimmedName = input.name?.trim();
+
+    if (trimmedName && existing.tournamentId) {
+      const duplicate = await this.prisma.team.findFirst({
+        where: {
+          tournamentId: existing.tournamentId,
+          id: { not: id },
+          name: trimmedName,
+        },
+      });
+      if (duplicate) {
+        throw new ConflictException(
+          `Ya existe otro equipo con el nombre "${trimmedName}" en este torneo.`,
+        );
+      }
+    }
+
     return this.prisma.team.update({
       where: { id },
       data: {
-        name: input.name,
-        delegateName: input.delegateName,
-        logoUrl: input.logoUrl,
+        name: trimmedName || undefined,
+        delegateName:
+          input.delegateName !== undefined
+            ? input.delegateName.trim() || null
+            : undefined,
+        logoUrl: input.logoUrl !== undefined ? input.logoUrl : undefined,
+      },
+      include: {
+        tournament: {
+          select: { id: true, name: true, maxTeams: true },
+        },
+        players: {
+          orderBy: { jerseyNumber: 'asc' },
+        },
       },
     });
   }
 
   async deleteTeam(id: number) {
+    await this.findTeamById(id);
+
+    const matchCount = await this.prisma.match.count({
+      where: {
+        OR: [{ homeTeamId: id }, { awayTeamId: id }, { winnerTeamId: id }],
+      },
+    });
+
+    if (matchCount > 0) {
+      throw new BadRequestException(
+        'No se puede eliminar un equipo que ya tiene partidos programados o jugados en el torneo.',
+      );
+    }
+
     return this.prisma.team.delete({ where: { id } });
   }
 }
