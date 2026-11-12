@@ -14,6 +14,7 @@ import {
 } from '../volleyball-engine/volleyball-engine.service';
 import { ScorePointDto } from './dto/score-point.dto';
 import { StartSetDto } from './dto/start-set.dto';
+import { UpdateCourtPositionDto } from './dto/update-court-position.dto';
 import {
   LiveScoringGateway,
   MatchScoreUpdatedPayload,
@@ -389,5 +390,58 @@ export class LiveScoringService {
       ...updatedState,
       liveState,
     };
+  }
+
+  /**
+   * Permite al árbitro o administrador sustituir o corregir directamente
+   * el jugador/número en una posición específica de la cancha (P1 a P6).
+   */
+  public async updateCourtPosition(
+    dto: UpdateCourtPositionDto,
+    currentUser: AuthenticatedUser,
+  ) {
+    const match = await this.prisma.match.findUnique({
+      where: { id: dto.matchId },
+    });
+
+    if (!match) {
+      throw new NotFoundException(`El partido #${dto.matchId} no existe.`);
+    }
+
+    const isAdmin = currentUser.role === Role.ADMIN;
+    const isAssignedReferee =
+      currentUser.role === Role.REFEREE && match.refereeId === currentUser.id;
+
+    if (!isAdmin && !isAssignedReferee) {
+      throw new ForbiddenException(
+        'Solo el juez asignado al partido o el administrador puede modificar las posiciones de cancha.',
+      );
+    }
+
+    const posField = `pos${dto.positionNumber}PlayerId`;
+
+    await this.prisma.setLineup.update({
+      where: {
+        setId_teamId: {
+          setId: dto.setId,
+          teamId: dto.teamId,
+        },
+      },
+      data: {
+        [posField]: dto.playerId,
+      },
+    });
+
+    const liveState = await this.matchesService.getMatchLivePayload(dto.matchId);
+
+    this.liveScoringGateway.server
+      .to(this.liveScoringGateway.getRoomName(dto.matchId))
+      .emit('matchScoreUpdated', {
+        ...liveState,
+        didServeChange: false,
+        rotatedTeamId: null,
+      });
+
+    return liveState;
   }
 }

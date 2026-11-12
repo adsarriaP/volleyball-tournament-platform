@@ -9,6 +9,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ScorePointDto } from './dto/score-point.dto';
 import { StartSetDto } from './dto/start-set.dto';
+import { UpdateCourtPositionDto } from './dto/update-court-position.dto';
 import { LiveScoringService } from './live-scoring.service';
 
 @Controller('live-scoring')
@@ -32,5 +33,14 @@ export class LiveScoringController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.liveScoringService.scorePoint(dto, user);
+  }
+
+  @Post('position')
+  @Roles(Role.REFEREE, Role.ADMIN)
+  async updateCourtPosition(
+    @Body() dto: UpdateCourtPositionDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.liveScoringService.updateCourtPosition(dto, user);
   }
 }

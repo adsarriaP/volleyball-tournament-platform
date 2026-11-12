@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Calendar,
+  Edit,
   ExternalLink,
   MapPin,
   Radio,
@@ -11,6 +12,8 @@ import {
   Users,
 } from 'lucide-react';
 import { resolveTeamLogoUrl } from '../../../shared/api/httpClient';
+import { useAuthStore } from '../../../shared/store/useAuthStore';
+import { EditMatchScheduleModal } from '../../matches/components/EditMatchScheduleModal';
 import {
   GroupStandingBlock,
   MatchSummary,
@@ -19,6 +22,7 @@ import {
 } from '../../../shared/types/volleyball.types';
 
 interface TeamScheduleFilterProps {
+  tournamentId?: number;
   teams: Team[];
   selectedTeamId: number | null;
   onSelectTeam: (teamId: number | null) => void;
@@ -52,6 +56,7 @@ const TeamBadge: React.FC<{ team: Team; size?: 'sm' | 'md' }> = ({
 };
 
 export const TeamScheduleFilter: React.FC<TeamScheduleFilterProps> = ({
+  tournamentId,
   teams,
   selectedTeamId,
   onSelectTeam,
@@ -62,8 +67,12 @@ export const TeamScheduleFilter: React.FC<TeamScheduleFilterProps> = ({
   groupStandings,
   qualifiersPerGroup = 2,
 }) => {
+  const user = useAuthStore((state) => state.user);
+  const isAdmin = user?.role === 'ADMIN';
+
   const [filterMode, setFilterMode] = useState<SofaFilterMode>('ALL');
   const [selectedDateKey, setSelectedDateKey] = useState<string>('ALL');
+  const [editingMatch, setEditingMatch] = useState<MatchSummary | null>(null);
 
   const allMatches = useMemo(
     () => [...liveMatches, ...upcomingMatches, ...finishedMatches],
@@ -332,12 +341,36 @@ export const TeamScheduleFilter: React.FC<TeamScheduleFilterProps> = ({
                         )}
                       </div>
 
-                      <Link
-                        to={`/matches/${m.id}/live`}
-                        className="font-black text-yellow-400 hover:underline"
-                      >
-                        {isLive ? '● Seguir en Vivo →' : 'Detalles / Sala →'}
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        {m.referee ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
+                            <Shield className="w-3 h-3" />
+                            Juez: {m.referee.name}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-zinc-500 italic">
+                            Sin juez asignado
+                          </span>
+                        )}
+
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => setEditingMatch(m)}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-zinc-800 hover:bg-yellow-400 hover:text-black text-zinc-300 font-bold text-[10px] transition"
+                          >
+                            <Edit className="w-3 h-3" />
+                            Gestionar Partido / Juez
+                          </button>
+                        )}
+
+                        <Link
+                          to={`/matches/${m.id}/live`}
+                          className="font-black text-yellow-400 hover:underline"
+                        >
+                          {isLive ? '● Seguir en Vivo →' : 'Detalles / Sala →'}
+                        </Link>
+                      </div>
                     </div>
 
                     {/* Fila Principal Estilo SofaScore */}
@@ -569,6 +602,16 @@ export const TeamScheduleFilter: React.FC<TeamScheduleFilterProps> = ({
           ))}
         </div>
       </div>
+
+      {/* Modal para que el Administrador edite el Juez, Fecha y Cancha del Partido */}
+      {editingMatch && tournamentId && (
+        <EditMatchScheduleModal
+          match={editingMatch}
+          tournamentId={tournamentId}
+          isOpen={Boolean(editingMatch)}
+          onClose={() => setEditingMatch(null)}
+        />
+      )}
     </div>
   );
 };

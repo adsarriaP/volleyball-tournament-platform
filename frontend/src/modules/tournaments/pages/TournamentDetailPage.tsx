@@ -94,6 +94,7 @@ export const TournamentDetailPage: React.FC = () => {
 
       {/* Vista SofaScore con Filtro de Equipos, En Vivo, Próximos y Tablas por Grupo */}
       <TeamScheduleFilter
+        tournamentId={tournament.id}
         teams={tournament.teams}
         selectedTeamId={selectedTeamId}
         onSelectTeam={handleSelectTeam}

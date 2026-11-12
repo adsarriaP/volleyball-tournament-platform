@@ -452,21 +452,22 @@ export class TournamentsService {
     tournamentId: number,
     input: StartTournamentInput,
   ) {
-    return this.prisma.$transaction(async (tx) => {
-      const tournament = await tx.tournament.findUnique({
-        where: { id: tournamentId },
-        include: { matches: true },
-      });
+    return this.prisma.$transaction(
+      async (tx) => {
+        const tournament = await tx.tournament.findUnique({
+          where: { id: tournamentId },
+          include: { matches: true },
+        });
 
-      if (!tournament) {
-        throw new NotFoundException(`El torneo #${tournamentId} no existe.`);
-      }
+        if (!tournament) {
+          throw new NotFoundException(`El torneo #${tournamentId} no existe.`);
+        }
 
-      if (tournament.matches.length > 0) {
-        throw new BadRequestException(
-          'Este torneo ya fue iniciado y cuenta con cruces generados.',
-        );
-      }
+        if (tournament.matches.length > 0) {
+          throw new BadRequestException(
+            'Este torneo ya fue iniciado y cuenta con cruces generados.',
+          );
+        }
 
       // Buscar EXCLUSIVAMENTE equipos asociados a este torneo específico
       const teams = await tx.team.findMany({
@@ -553,12 +554,13 @@ export class TournamentsService {
           });
 
           const bucket = groupBuckets[gIdx];
-          for (const team of bucket) {
-            await tx.teamGroupMember.create({
-              data: {
+          if (bucket.length > 0) {
+            await tx.teamGroupMember.createMany({
+              data: bucket.map((t) => ({
                 groupId: group.id,
-                teamId: team.id,
-              },
+                teamId: t.id,
+              })),
+              skipDuplicates: true,
             });
           }
 
@@ -598,10 +600,9 @@ export class TournamentsService {
         tournament.dailyEndHour,
       );
 
-      const generatedMatches = [];
-      for (const item of scheduledPairings) {
-        const match = await tx.match.create({
-          data: {
+      if (scheduledPairings.length > 0) {
+        await tx.match.createMany({
+          data: scheduledPairings.map((item) => ({
             tournamentId: tournament.id,
             phaseId: item.phaseId,
             homeTeamId: item.homeTeamId,
@@ -611,21 +612,29 @@ export class TournamentsService {
             courtNumber: null,
             courtMapUrl: null,
             refereeId: null,
-          },
-          include: {
-            homeTeam: true,
-            awayTeam: true,
-            phase: true,
-          },
+          })),
         });
-        generatedMatches.push(match);
       }
+
+      const generatedMatches = await tx.match.findMany({
+        where: { tournamentId: tournament.id },
+        include: {
+          homeTeam: true,
+          awayTeam: true,
+          phase: true,
+        },
+        orderBy: { id: 'asc' },
+      });
 
       return {
         tournamentId: tournament.id,
         totalMatchesGenerated: generatedMatches.length,
         matches: generatedMatches,
       };
+    },
+    {
+      maxWait: 20000,
+      timeout: 90000,
     });
   }
 

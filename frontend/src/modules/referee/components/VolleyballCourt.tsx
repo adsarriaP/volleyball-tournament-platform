@@ -10,6 +10,7 @@ interface VolleyballCourtProps {
   servingTeamId?: number;
   lastRotatedTeamId?: number | null;
   isSidesSwapped?: boolean;
+  onSlotClick?: (teamId: number, posNumber: number, currentPlayer?: Player) => void;
 }
 
 interface CourtSlotProps {
@@ -18,6 +19,7 @@ interface CourtSlotProps {
   isServer: boolean;
   teamColor: 'amber' | 'sky';
   isRotating: boolean;
+  onClick?: () => void;
 }
 
 const CourtSlot: React.FC<CourtSlotProps> = ({
@@ -26,6 +28,7 @@ const CourtSlot: React.FC<CourtSlotProps> = ({
   isServer,
   teamColor,
   isRotating,
+  onClick,
 }) => {
   const accentClasses =
     teamColor === 'amber'
@@ -38,14 +41,22 @@ const CourtSlot: React.FC<CourtSlotProps> = ({
 
   return (
     <div
-      className={`relative flex flex-col items-center justify-center p-2.5 md:p-3 rounded-2xl border transition-all duration-500 ${accentClasses} ${serverGlow} ${
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      className={`relative flex flex-col items-center justify-center p-2.5 md:p-3 rounded-2xl border transition-all duration-300 ${accentClasses} ${serverGlow} ${
         isRotating ? 'animate-pulse scale-105' : ''
-      }`}
+      } ${onClick ? 'cursor-pointer hover:border-yellow-400 hover:scale-105 hover:shadow-lg' : ''}`}
     >
       {/* Etiqueta de Posición Reglamentaria (1 a 6) */}
       <span className="absolute top-1.5 left-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
         P{posNumber}
       </span>
+
+      {onClick && (
+        <span className="absolute top-1.5 right-2 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-yellow-400/20 text-yellow-300 border border-yellow-400/30">
+          ✎ Editar
+        </span>
+      )}
 
       {/* Indicador de Sacador Activo en P1 */}
       {isServer && (
@@ -90,6 +101,7 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
   servingTeamId,
   lastRotatedTeamId,
   isSidesSwapped = false,
+  onSlotClick,
 }) => {
   const leftTeam = isSidesSwapped ? awayTeam : homeTeam;
   const rightTeam = isSidesSwapped ? homeTeam : awayTeam;
@@ -147,6 +159,7 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
                 isServer={false}
                 teamColor={leftColor}
                 isRotating={isLeftRotating}
+                onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 5, leftLineup?.pos5) : undefined}
               />
               <CourtSlot
                 posNumber={6}
@@ -154,6 +167,7 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
                 isServer={false}
                 teamColor={leftColor}
                 isRotating={isLeftRotating}
+                onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 6, leftLineup?.pos6) : undefined}
               />
               <CourtSlot
                 posNumber={1}
@@ -161,6 +175,7 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
                 isServer={isLeftServing}
                 teamColor={leftColor}
                 isRotating={isLeftRotating}
+                onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 1, leftLineup?.pos1) : undefined}
               />
             </div>
 
@@ -175,6 +190,7 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
                 isServer={false}
                 teamColor={leftColor}
                 isRotating={isLeftRotating}
+                onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 4, leftLineup?.pos4) : undefined}
               />
               <CourtSlot
                 posNumber={3}
@@ -182,6 +198,7 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
                 isServer={false}
                 teamColor={leftColor}
                 isRotating={isLeftRotating}
+                onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 3, leftLineup?.pos3) : undefined}
               />
               <CourtSlot
                 posNumber={2}
@@ -189,6 +206,7 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
                 isServer={false}
                 teamColor={leftColor}
                 isRotating={isLeftRotating}
+                onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 2, leftLineup?.pos2) : undefined}
               />
             </div>
           </div>
@@ -226,6 +244,7 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
                 isServer={false}
                 teamColor={rightColor}
                 isRotating={isRightRotating}
+                onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 2, rightLineup?.pos2) : undefined}
               />
               <CourtSlot
                 posNumber={3}
@@ -233,6 +252,7 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
                 isServer={false}
                 teamColor={rightColor}
                 isRotating={isRightRotating}
+                onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 3, rightLineup?.pos3) : undefined}
               />
               <CourtSlot
                 posNumber={4}
@@ -240,6 +260,7 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
                 isServer={false}
                 teamColor={rightColor}
                 isRotating={isRightRotating}
+                onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 4, rightLineup?.pos4) : undefined}
               />
             </div>
 
@@ -254,6 +275,7 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
                 isServer={isRightServing}
                 teamColor={rightColor}
                 isRotating={isRightRotating}
+                onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 1, rightLineup?.pos1) : undefined}
               />
               <CourtSlot
                 posNumber={6}
@@ -261,6 +283,7 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
                 isServer={false}
                 teamColor={rightColor}
                 isRotating={isRightRotating}
+                onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 6, rightLineup?.pos6) : undefined}
               />
               <CourtSlot
                 posNumber={5}
@@ -268,6 +291,7 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
                 isServer={false}
                 teamColor={rightColor}
                 isRotating={isRightRotating}
+                onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 5, rightLineup?.pos5) : undefined}
               />
             </div>
           </div>

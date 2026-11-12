@@ -21,6 +21,14 @@ export const RefereeScoringPage: React.FC = () => {
   const [awayPositions, setAwayPositions] = useState<number[]>([0, 0, 0, 0, 0, 0]);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
+  // Estado para edición individual de posición en cancha al hacer clic
+  const [editingPosition, setEditingPosition] = useState<{
+    teamId: number;
+    teamName: string;
+    posNumber: number;
+    currentPlayer?: Player;
+  } | null>(null);
+
   const {
     liveData,
     isConnected,
@@ -56,6 +64,41 @@ export const RefereeScoringPage: React.FC = () => {
       }
     }
   }, [fetchedMatch, setInitialData]);
+
+  const updatePositionMutation = useMutation({
+    mutationFn: async ({
+      positionNumber,
+      playerId,
+      teamId,
+    }: {
+      positionNumber: number;
+      playerId: number;
+      teamId: number;
+    }) => {
+      setErrorBanner(null);
+      if (!activeMatch?.currentSet?.id) {
+        throw new Error('No hay un set en curso para modificar la posición.');
+      }
+      return apiFetch<MatchLivePayload>('/live-scoring/position', {
+        method: 'POST',
+        body: JSON.stringify({
+          matchId: numericMatchId,
+          setId: activeMatch.currentSet.id,
+          teamId,
+          positionNumber,
+          playerId,
+        }),
+      });
+    },
+    onSuccess: (updated) => {
+      setInitialData(updated);
+      setEditingPosition(null);
+      void refetch();
+    },
+    onError: (err: Error) => {
+      setErrorBanner(err.message);
+    },
+  });
 
   const activeMatch = liveData ?? fetchedMatch;
 
@@ -235,6 +278,18 @@ export const RefereeScoringPage: React.FC = () => {
         servingTeamId={activeMatch.currentSet?.servingTeamId}
         lastRotatedTeamId={lastRotatedTeamId}
         isSidesSwapped={isSidesSwapped}
+        onSlotClick={(teamId, posNumber, currentPlayer) => {
+          const teamName =
+            teamId === activeMatch.homeTeam.id
+              ? activeMatch.homeTeam.name
+              : activeMatch.awayTeam.name;
+          setEditingPosition({
+            teamId,
+            teamName,
+            posNumber,
+            currentPlayer,
+          });
+        }}
       />
 
       {/* Modal de Registro de Sexteto Inicial (Posiciones 1 a 6) */}
@@ -364,6 +419,86 @@ export const RefereeScoringPage: React.FC = () => {
                 {startSetMutation.isPending
                   ? 'Guardando Sextetos...'
                   : `Confirmar Alineaciones e Iniciar Set ${setNumberToStart}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Rápido para que el Juez modifique el número de jugador en la Posición de Cancha */}
+      {editingPosition && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-900 p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-yellow-400">
+                  {editingPosition.teamName}
+                </span>
+                <h3 className="text-base font-black text-white">
+                  Ajustar Jugador en Posición P{editingPosition.posNumber}
+                </h3>
+              </div>
+              <button
+                onClick={() => setEditingPosition(null)}
+                className="text-xs text-zinc-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-400">
+              Selecciona el jugador que ocupará la posición P{editingPosition.posNumber}{' '}
+              en la rotación actual:
+            </p>
+
+            <div className="space-y-1.5 max-h-60 overflow-y-auto">
+              {(editingPosition.teamId === activeMatch.homeTeam.id
+                ? activeMatch.homeTeam.players ?? []
+                : activeMatch.awayTeam.players ?? []
+              ).map((p: Player) => {
+                const isCurrent = editingPosition.currentPlayer?.id === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() =>
+                      updatePositionMutation.mutate({
+                        positionNumber: editingPosition.posNumber,
+                        playerId: p.id,
+                        teamId: editingPosition.teamId,
+                      })
+                    }
+                    className={`w-full flex items-center justify-between p-3 rounded-xl border text-left transition ${
+                      isCurrent
+                        ? 'border-yellow-400 bg-yellow-400/20 text-yellow-300'
+                        : 'border-zinc-800 bg-zinc-950 hover:bg-zinc-800 text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center font-black text-xs text-yellow-400">
+                        #{p.jerseyNumber}
+                      </span>
+                      <span className="text-xs font-bold">
+                        {p.firstName} {p.lastName}
+                      </span>
+                    </div>
+                    {isCurrent && (
+                      <span className="text-[10px] font-black text-yellow-400 uppercase">
+                        En Cancha
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingPosition(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-800 text-zinc-300"
+              >
+                Cerrar
               </button>
             </div>
           </div>
