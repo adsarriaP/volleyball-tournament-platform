@@ -78,4 +78,14 @@ export class MatchesController {
   ) {
     return this.matchesService.scheduleMatch(id, dto);
   }
+
+  @Patch(':id/result')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async updateMatchResult(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: any,
+  ) {
+    return this.matchesService.updateMatchResult(id, dto);
+  }
 }

@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
@@ -28,6 +38,20 @@ export class CreateRefereeRequestDto {
   password!: string;
 }
 
+export class UpdateRefereeRequestDto {
+  @IsString()
+  @IsNotEmpty()
+  name!: string;
+
+  @IsEmail()
+  email!: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(4)
+  password?: string;
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -49,6 +73,23 @@ export class AuthController {
   @Roles(Role.ADMIN)
   async listReferees() {
     return this.authService.listReferees();
+  }
+
+  @Patch('referees/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async updateReferee(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateRefereeRequestDto,
+  ) {
+    return this.authService.updateReferee(id, dto as any);
+  }
+
+  @Delete('referees/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async deleteReferee(@Param('id', ParseIntPipe) id: number) {
+    return this.authService.deleteReferee(id);
   }
 }
 

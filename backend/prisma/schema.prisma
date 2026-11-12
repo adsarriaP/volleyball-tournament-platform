@@ -177,7 +177,7 @@ model Match {
   phase      TournamentPhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
   homeTeam   Team            @relation("HomeTeamMatches", fields: [homeTeamId], references: [id])
   awayTeam   Team            @relation("AwayTeamMatches", fields: [awayTeamId], references: [id])
-  referee    User?           @relation("RefereeMatches", fields: [refereeId], references: [id])
+  referee    User?           @relation("RefereeMatches", fields: [refereeId], references: [id], onDelete: SetNull)
   winnerTeam Team?           @relation("WinnerTeamMatches", fields: [winnerTeamId], references: [id])
   sets       MatchSet[]
 

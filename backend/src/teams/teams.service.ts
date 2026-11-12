@@ -151,4 +151,19 @@ export class TeamsService {
       },
     });
   }
+
+  async updateTeam(id: number, input: { name?: string; delegateName?: string; logoUrl?: string }) {
+    return this.prisma.team.update({
+      where: { id },
+      data: {
+        name: input.name,
+        delegateName: input.delegateName,
+        logoUrl: input.logoUrl,
+      },
+    });
+  }
+
+  async deleteTeam(id: number) {
+    return this.prisma.team.delete({ where: { id } });
+  }
 }

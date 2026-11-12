@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   UploadedFile,
@@ -125,5 +127,19 @@ export class TeamsController {
     @Body() dto: PlayerItemDto,
   ) {
     return this.teamsService.addPlayer(id, dto);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async updateTeam(@Param('id', ParseIntPipe) id: number, @Body() dto: any) {
+    return this.teamsService.updateTeam(id, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async deleteTeam(@Param('id', ParseIntPipe) id: number) {
+    return this.teamsService.deleteTeam(id);
   }
 }

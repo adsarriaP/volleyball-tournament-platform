@@ -135,5 +135,24 @@ export class AuthService implements OnModuleInit {
       orderBy: { name: 'asc' },
     });
   }
+
+  async updateReferee(id: number, dto: CreateRefereeDto) {
+    const data: any = {
+      name: dto.name,
+      email: dto.email,
+    };
+    if (dto.password) {
+      data.passwordHash = this.hashPassword(dto.password);
+    }
+    return this.prisma.user.update({
+      where: { id },
+      data,
+      select: { id: true, name: true, email: true, role: true },
+    });
+  }
+
+  async deleteReferee(id: number) {
+    return this.prisma.user.delete({ where: { id } });
+  }
 }
 
