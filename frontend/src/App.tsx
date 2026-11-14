@@ -5,6 +5,9 @@ import { AppNavbar } from './shared/components/AppNavbar';
 import { ActiveTournamentsPage } from './modules/tournaments/pages/ActiveTournamentsPage';
 import { TournamentDetailPage } from './modules/tournaments/pages/TournamentDetailPage';
 import { AdminDashboardPage } from './modules/tournaments/pages/AdminDashboardPage';
+import { AdminRefereesPage } from './modules/tournaments/pages/AdminRefereesPage';
+import { AdminTeamsPage } from './modules/tournaments/pages/AdminTeamsPage';
+import { AdminTournamentsPage } from './modules/tournaments/pages/AdminTournamentsPage';
 import { RefereeMatchesPage } from './modules/referee/pages/RefereeMatchesPage';
 import { RefereeScoringPage } from './modules/referee/pages/RefereeScoringPage';
 import { LiveMatchPublicPage } from './modules/teams/pages/LiveMatchPublicPage';
@@ -53,6 +56,12 @@ export const App: React.FC = () => {
               />
               {/* Panel de Administración (ADMIN) */}
               <Route path="/admin" element={<AdminDashboardPage />} />
+              <Route
+                path="/admin/tournaments"
+                element={<AdminTournamentsPage />}
+              />
+              <Route path="/admin/teams" element={<AdminTeamsPage />} />
+              <Route path="/admin/referees" element={<AdminRefereesPage />} />
             </Routes>
           </main>
         </div>

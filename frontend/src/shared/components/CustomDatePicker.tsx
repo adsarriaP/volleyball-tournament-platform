@@ -127,7 +127,20 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-2 w-72 rounded-2xl border border-zinc-700 bg-zinc-900 p-4 shadow-2xl space-y-3 left-0">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 sm:static sm:inset-auto sm:block sm:bg-transparent sm:backdrop-blur-none sm:p-0"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsOpen(false);
+            }
+          }}
+        >
+          <div className="w-full max-w-[320px] sm:w-72 sm:absolute sm:left-0 sm:mt-2 sm:z-50 rounded-2xl border border-zinc-700 bg-zinc-900 p-4 shadow-2xl space-y-3">
+            {label && (
+              <div className="sm:hidden text-[11px] font-black uppercase tracking-wider text-yellow-400 text-center pb-1 border-b border-zinc-800">
+                {label}
+              </div>
+            )}
           {/* Navegación de Mes y Año */}
           <div className="flex items-center justify-between">
             <button
@@ -223,6 +236,7 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
             >
               Cerrar
             </button>
+          </div>
           </div>
         </div>
       )}

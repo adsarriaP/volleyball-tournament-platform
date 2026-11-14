@@ -744,4 +744,86 @@ export class TournamentsService {
       };
     });
   }
+
+  async updateTournament(
+    id: number,
+    input: Partial<CreateTournamentInput>,
+  ) {
+    const existing = await this.prisma.tournament.findUnique({
+      where: { id },
+      include: { _count: { select: { teams: true } } },
+    });
+
+    if (!existing) {
+      throw new NotFoundException(`El torneo #${id} no existe.`);
+    }
+
+    if (
+      input.maxTeams !== undefined &&
+      input.maxTeams < existing._count.teams
+    ) {
+      throw new BadRequestException(
+        `No puedes reducir el cupo a ${input.maxTeams} porque ya hay ${existing._count.teams} equipos inscritos.`,
+      );
+    }
+
+    const startDate =
+      input.startDate !== undefined
+        ? input.startDate
+          ? new Date(input.startDate)
+          : null
+        : existing.startDate;
+    const endDate =
+      input.endDate !== undefined
+        ? input.endDate
+          ? new Date(input.endDate)
+          : null
+        : existing.endDate;
+
+    if (startDate && endDate && endDate < startDate) {
+      throw new BadRequestException(
+        'La fecha de fin del torneo no puede ser anterior a la fecha de inicio.',
+      );
+    }
+
+    const startHour = input.dailyStartHour ?? existing.dailyStartHour;
+    const endHour = input.dailyEndHour ?? existing.dailyEndHour;
+    if (endHour <= startHour) {
+      throw new BadRequestException(
+        'La hora de cierre diaria debe ser posterior a la hora de inicio.',
+      );
+    }
+
+    return this.prisma.tournament.update({
+      where: { id },
+      data: {
+        name: input.name !== undefined ? input.name.trim() : undefined,
+        formatType: input.formatType,
+        maxTeams: input.maxTeams,
+        groupsCount: input.groupsCount,
+        maxSets: input.maxSets,
+        pointsRegularSet: input.pointsRegularSet,
+        pointsFinalSet: input.pointsFinalSet,
+        pointsDifference: input.pointsDifference,
+        qualifiersPerGroup: input.qualifiersPerGroup,
+        startDate: input.startDate !== undefined ? startDate : undefined,
+        endDate: input.endDate !== undefined ? endDate : undefined,
+        dailyStartHour: input.dailyStartHour,
+        dailyEndHour: input.dailyEndHour,
+      },
+    });
+  }
+
+  async deleteTournament(id: number) {
+    const existing = await this.prisma.tournament.findUnique({
+      where: { id },
+    });
+    if (!existing) {
+      throw new NotFoundException(`El torneo #${id} no existe.`);
+    }
+
+    return this.prisma.tournament.delete({
+      where: { id },
+    });
+  }
 }

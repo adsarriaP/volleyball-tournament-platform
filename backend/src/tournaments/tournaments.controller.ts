@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -99,6 +101,84 @@ export class CreateTournamentDto {
   dailyEndHour?: number;
 }
 
+export class UpdateTournamentDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  name?: string;
+
+  @IsOptional()
+  @IsEnum(TournamentFormatType)
+  formatType?: TournamentFormatType;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(2)
+  @Max(128)
+  maxTeams?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(16)
+  groupsCount?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(7)
+  maxSets?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(5)
+  pointsRegularSet?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(5)
+  pointsFinalSet?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  pointsDifference?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  qualifiersPerGroup?: number;
+
+  @IsOptional()
+  @IsString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsString()
+  endDate?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(6)
+  @Max(22)
+  dailyStartHour?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(7)
+  @Max(23)
+  dailyEndHour?: number;
+}
+
 export class StartTournamentDto {
   @IsOptional()
   @IsArray()
@@ -135,6 +215,23 @@ export class TournamentsController {
   @Roles(Role.ADMIN)
   async create(@Body() dto: CreateTournamentDto) {
     return this.tournamentsService.createTournament(dto);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateTournamentDto,
+  ) {
+    return this.tournamentsService.updateTournament(id, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    return this.tournamentsService.deleteTournament(id);
   }
 
   @Post(':id/start')
