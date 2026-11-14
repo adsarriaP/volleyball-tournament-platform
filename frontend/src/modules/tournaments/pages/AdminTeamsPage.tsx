@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { apiFetch, resolveTeamLogoUrl } from '../../../shared/api/httpClient';
 import { ConfirmDeleteModal } from '../../../shared/components/ConfirmDeleteModal';
+import { useToastStore } from '../../../shared/store/useToastStore';
 import {
   MatchSummary,
   Team,
@@ -128,13 +129,18 @@ export const AdminTeamsPage: React.FC = () => {
       setTeamName('');
       setDelegateName('');
       setLogoFile(null);
-      setFeedback('Equipo registrado correctamente en el torneo.');
+      const msg = 'Equipo registrado correctamente en el torneo.';
+      setFeedback(msg);
+      useToastStore.getState().success(msg);
       void queryClient.invalidateQueries({
         queryKey: ['admin-teams-tournament', numericTournamentId],
       });
       void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
     },
-    onError: (err: Error) => setErrorMsg(err.message),
+    onError: (err: Error) => {
+      setErrorMsg(err.message);
+      useToastStore.getState().error(err.message);
+    },
   });
 
   const updateTeamMutation = useMutation({
@@ -154,13 +160,18 @@ export const AdminTeamsPage: React.FC = () => {
     },
     onSuccess: () => {
       setEditingTeam(null);
-      setFeedback('Equipo actualizado correctamente.');
+      const msg = 'Equipo actualizado correctamente.';
+      setFeedback(msg);
+      useToastStore.getState().success(msg);
       void queryClient.invalidateQueries({
         queryKey: ['admin-teams-tournament', numericTournamentId],
       });
       void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
     },
-    onError: (err: Error) => setErrorMsg(err.message),
+    onError: (err: Error) => {
+      setErrorMsg(err.message);
+      useToastStore.getState().error(err.message);
+    },
   });
 
   const deleteTeamMutation = useMutation({
@@ -170,7 +181,9 @@ export const AdminTeamsPage: React.FC = () => {
     },
     onSuccess: () => {
       setTeamToDelete(null);
-      setFeedback('Equipo eliminado correctamente.');
+      const msg = 'Equipo eliminado correctamente.';
+      setFeedback(msg);
+      useToastStore.getState().success(msg);
       void queryClient.invalidateQueries({
         queryKey: ['admin-teams-tournament', numericTournamentId],
       });
@@ -179,6 +192,7 @@ export const AdminTeamsPage: React.FC = () => {
     onError: (err: Error) => {
       setTeamToDelete(null);
       setErrorMsg(err.message);
+      useToastStore.getState().error(err.message);
     },
   });
 

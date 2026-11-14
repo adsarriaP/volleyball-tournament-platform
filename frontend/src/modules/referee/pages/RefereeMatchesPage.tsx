@@ -1,8 +1,17 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Calendar, ClipboardCheck, MapPin, Play } from 'lucide-react';
-import { apiFetch } from '../../../shared/api/httpClient';
+import {
+  Calendar,
+  ClipboardCheck,
+  ExternalLink,
+  MapPin,
+  Play,
+} from 'lucide-react';
+import {
+  apiFetch,
+  normalizeExternalUrl,
+} from '../../../shared/api/httpClient';
 import { MatchSummary } from '../../../shared/types/volleyball.types';
 
 export const RefereeMatchesPage: React.FC = () => {
@@ -102,6 +111,17 @@ export const RefereeMatchesPage: React.FC = () => {
                     ? `Cancha ${match.courtNumber}`
                     : 'Cancha por asignar'}
                 </span>
+                {normalizeExternalUrl(match.courtMapUrl) && (
+                  <a
+                    href={normalizeExternalUrl(match.courtMapUrl)!}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-400/15 text-amber-300 border border-amber-400/30 font-bold hover:bg-amber-400 hover:text-slate-950 transition"
+                  >
+                    📍 Ver en Google Maps
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
               </div>
             </div>
 

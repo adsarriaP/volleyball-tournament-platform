@@ -11,6 +11,15 @@ export function resolveTeamLogoUrl(logoUrl?: string | null): string | null {
   return `${API_BASE_URL}${logoUrl.startsWith('/') ? '' : '/'}${logoUrl}`;
 }
 
+export function normalizeExternalUrl(url?: string | null): string | null {
+  const trimmed = url?.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+}
+
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {},

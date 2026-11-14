@@ -41,6 +41,11 @@ enum SetStatus {
   COMPLETED
 }
 
+enum TournamentStatus {
+  ACTIVE
+  FINISHED
+}
+
 // ============================================================================
 // MODELS
 // ============================================================================
@@ -62,6 +67,7 @@ model Tournament {
   id                 Int                  @id @default(autoincrement()) @db.UnsignedInt
   name               String               @db.VarChar(200)
   formatType         TournamentFormatType @map("format_type")
+  status             TournamentStatus     @default(ACTIVE)
   maxTeams           Int                  @default(20) @map("max_teams") @db.UnsignedSmallInt
   groupsCount        Int                  @default(2) @map("groups_count") @db.UnsignedTinyInt
   maxSets            Int                  @default(3) @map("max_sets") @db.UnsignedTinyInt

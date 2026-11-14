@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ArrowLeft, CheckCircle2, Trophy, Users } from 'lucide-react';
 import { apiFetch } from '../../../shared/api/httpClient';
+import { useToastStore } from '../../../shared/store/useToastStore';
 import { LiveScoreBanner } from '../../../shared/components/LiveScoreBanner';
 import { useMatchLiveSocket } from '../../../shared/hooks/useMatchLiveSocket';
 import { MatchLivePayload, Player } from '../../../shared/types/volleyball.types';
@@ -95,10 +96,12 @@ export const RefereeScoringPage: React.FC = () => {
       setInitialData(updated);
       setEditingPosition(null);
       setDirectJerseyInput('');
+      useToastStore.getState().success('Posición en cancha actualizada.');
       void refetch();
     },
     onError: (err: Error) => {
       setErrorBanner(err.message);
+      useToastStore.getState().error(err.message);
     },
   });
 
@@ -131,10 +134,12 @@ export const RefereeScoringPage: React.FC = () => {
       setInitialData(updated);
       setEditingPosition(null);
       setDirectJerseyInput('');
+      useToastStore.getState().success('Dorsal asignado en cancha.');
       void refetch();
     },
     onError: (err: Error) => {
       setErrorBanner(err.message);
+      useToastStore.getState().error(err.message);
     },
   });
 
@@ -154,10 +159,12 @@ export const RefereeScoringPage: React.FC = () => {
     },
     onSuccess: (updated) => {
       if (updated) setInitialData(updated);
+      useToastStore.getState().success('Set finalizado correctamente.');
       void refetch();
     },
     onError: (err: Error) => {
       setErrorBanner(err.message);
+      useToastStore.getState().error(err.message);
     },
   });
 
@@ -173,10 +180,12 @@ export const RefereeScoringPage: React.FC = () => {
     },
     onSuccess: (updated) => {
       if (updated) setInitialData(updated);
+      useToastStore.getState().success('Partido finalizado oficialmente.');
       void refetch();
     },
     onError: (err: Error) => {
       setErrorBanner(err.message);
+      useToastStore.getState().error(err.message);
     },
   });
 
@@ -199,10 +208,12 @@ export const RefereeScoringPage: React.FC = () => {
     onSuccess: (updated) => {
       setInitialData(updated);
       setIsLineupModalOpen(false);
+      useToastStore.getState().success(`Set #${setNumberToStart} iniciado.`);
       void refetch();
     },
     onError: (err: Error) => {
       setErrorBanner(err.message);
+      useToastStore.getState().error(err.message);
     },
   });
 
@@ -233,6 +244,7 @@ export const RefereeScoringPage: React.FC = () => {
     },
     onError: (err: Error) => {
       setErrorBanner(err.message);
+      useToastStore.getState().error(err.message);
     },
   });
 

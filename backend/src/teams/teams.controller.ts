@@ -22,12 +22,13 @@ import {
   IsPositive,
   IsString,
 } from 'class-validator';
-import * as fs from 'fs';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import {
+  R2StorageService,
+  UploadedImageFile,
+} from '../storage/r2-storage.service';
 import { TeamsService } from './teams.service';
 
 export class PlayerItemDto {
@@ -64,24 +65,12 @@ export class CreateTeamDto {
   logoUrl?: string;
 }
 
-const teamLogoStorage = diskStorage({
-  destination: (_req, _file, cb) => {
-    const dest = join(process.cwd(), 'uploads', 'teams');
-    if (!fs.existsSync(dest)) {
-      fs.mkdirSync(dest, { recursive: true });
-    }
-    cb(null, dest);
-  },
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-    const ext = extname(file.originalname) || '.png';
-    cb(null, `team-${uniqueSuffix}${ext}`);
-  },
-});
-
 @Controller('teams')
 export class TeamsController {
-  constructor(private readonly teamsService: TeamsService) {}
+  constructor(
+    private readonly teamsService: TeamsService,
+    private readonly r2StorageService: R2StorageService,
+  ) {}
 
   @Get()
   async findAll(@Query('tournamentId') tournamentId?: string) {
@@ -100,15 +89,15 @@ export class TeamsController {
   @Roles(Role.ADMIN)
   @UseInterceptors(
     FileInterceptor('logo', {
-      storage: teamLogoStorage,
+      limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
   async create(
     @Body() dto: CreateTeamDto,
-    @UploadedFile() file?: { filename: string },
+    @UploadedFile() file?: UploadedImageFile,
   ) {
     const savedLogoPath = file
-      ? `/uploads/teams/${file.filename}`
+      ? await this.r2StorageService.uploadTeamLogo(file)
       : dto.logoUrl;
 
     return this.teamsService.createTeam({
@@ -134,16 +123,16 @@ export class TeamsController {
   @Roles(Role.ADMIN)
   @UseInterceptors(
     FileInterceptor('logo', {
-      storage: teamLogoStorage,
+      limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
   async updateTeam(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateTeamDto,
-    @UploadedFile() file?: { filename: string },
+    @UploadedFile() file?: UploadedImageFile,
   ) {
     const savedLogoPath = file
-      ? `/uploads/teams/${file.filename}`
+      ? await this.r2StorageService.uploadTeamLogo(file)
       : dto.logoUrl;
 
     return this.teamsService.updateTeam(id, {

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '../../../shared/api/httpClient';
 import { ConfirmDeleteModal } from '../../../shared/components/ConfirmDeleteModal';
+import { useToastStore } from '../../../shared/store/useToastStore';
 import { AuthUser } from '../../../shared/types/volleyball.types';
 import { AdminSidebarLayout } from '../components/AdminSidebarLayout';
 
@@ -66,10 +67,15 @@ export const AdminRefereesPage: React.FC = () => {
       setRefName('');
       setRefEmail('');
       setRefPassword('');
-      setFeedback('Cuenta de Juez creada exitosamente.');
+      const msg = 'Cuenta de Juez creada exitosamente.';
+      setFeedback(msg);
+      useToastStore.getState().success(msg);
       void queryClient.invalidateQueries({ queryKey: ['admin-referees'] });
     },
-    onError: (err: Error) => setErrorMsg(err.message),
+    onError: (err: Error) => {
+      setErrorMsg(err.message);
+      useToastStore.getState().error(err.message);
+    },
   });
 
   const updateRefereeMutation = useMutation({
@@ -90,11 +96,16 @@ export const AdminRefereesPage: React.FC = () => {
     },
     onSuccess: () => {
       setEditingReferee(null);
-      setFeedback('Juez actualizado correctamente.');
+      const msg = 'Juez actualizado correctamente.';
+      setFeedback(msg);
+      useToastStore.getState().success(msg);
       void queryClient.invalidateQueries({ queryKey: ['admin-referees'] });
       void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
     },
-    onError: (err: Error) => setErrorMsg(err.message),
+    onError: (err: Error) => {
+      setErrorMsg(err.message);
+      useToastStore.getState().error(err.message);
+    },
   });
 
   const deleteRefereeMutation = useMutation({
@@ -104,13 +115,16 @@ export const AdminRefereesPage: React.FC = () => {
     },
     onSuccess: () => {
       setRefereeToDelete(null);
-      setFeedback('Juez eliminado correctamente.');
+      const msg = 'Juez eliminado correctamente.';
+      setFeedback(msg);
+      useToastStore.getState().success(msg);
       void queryClient.invalidateQueries({ queryKey: ['admin-referees'] });
       void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
     },
     onError: (err: Error) => {
       setRefereeToDelete(null);
       setErrorMsg(err.message);
+      useToastStore.getState().error(err.message);
     },
   });
 

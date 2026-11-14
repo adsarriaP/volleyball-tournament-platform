@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
+  BookOpen,
   LayoutDashboard,
   Menu,
   PanelLeftClose,
@@ -43,6 +44,13 @@ const ADMIN_NAV_ITEMS = [
     label: 'Jueces',
     description: 'Crear, editar y eliminar',
     icon: UserPlus,
+    exact: false,
+  },
+  {
+    to: '/admin/help',
+    label: 'Guía / Ayuda',
+    description: 'Manual paso a paso',
+    icon: BookOpen,
     exact: false,
   },
 ];

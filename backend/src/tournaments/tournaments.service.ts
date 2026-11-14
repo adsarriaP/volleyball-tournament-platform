@@ -7,6 +7,7 @@ import {
   MatchStatus,
   PhaseType,
   TournamentFormatType,
+  TournamentStatus,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -517,10 +518,16 @@ export class TournamentsService {
           });
         }
       } else {
-        const groupsCount =
+        const requestedGroups =
           tournament.formatType === TournamentFormatType.LEAGUE_ONLY
             ? 1
             : Math.max(1, input.groupsCount ?? tournament.groupsCount ?? 2);
+
+        // Garantizar al menos 2 equipos por grupo para evitar grupos con 0 partidos
+        const groupsCount =
+          tournament.formatType === TournamentFormatType.LEAGUE_ONLY
+            ? 1
+            : Math.min(requestedGroups, Math.max(1, Math.floor(teams.length / 2)));
 
         const phase = await tx.tournamentPhase.create({
           data: {
@@ -589,6 +596,12 @@ export class TournamentsService {
             });
           }
         }
+      }
+
+      if (rawPairings.length === 0) {
+        throw new BadRequestException(
+          'No se pudieron generar cruces con la configuración actual de grupos y equipos. Verifica los equipos inscritos.',
+        );
       }
 
       // Asignar fechas y horarios automáticos entre 8:00 AM y 6:00 PM
@@ -811,6 +824,23 @@ export class TournamentsService {
         dailyStartHour: input.dailyStartHour,
         dailyEndHour: input.dailyEndHour,
       },
+    });
+  }
+
+  async finishTournament(id: number) {
+    const existing = await this.prisma.tournament.findUnique({
+      where: { id },
+    });
+    if (!existing) {
+      throw new NotFoundException(`El torneo #${id} no existe.`);
+    }
+    if (existing.status === TournamentStatus.FINISHED) {
+      throw new BadRequestException('Este torneo ya se encuentra finalizado.');
+    }
+
+    return this.prisma.tournament.update({
+      where: { id },
+      data: { status: TournamentStatus.FINISHED },
     });
   }
 

@@ -6,7 +6,10 @@ import {
   Radio,
   Trophy,
 } from 'lucide-react';
-import { resolveTeamLogoUrl } from '../api/httpClient';
+import {
+  normalizeExternalUrl,
+  resolveTeamLogoUrl,
+} from '../api/httpClient';
 import { MatchLivePayload } from '../types/volleyball.types';
 
 interface LiveScoreBannerProps {
@@ -41,9 +44,9 @@ export const LiveScoreBanner: React.FC<LiveScoreBannerProps> = ({
               {match.courtNumber}
             </span>
           )}
-          {match.courtMapUrl && (
+          {normalizeExternalUrl(match.courtMapUrl) && (
             <a
-              href={match.courtMapUrl}
+              href={normalizeExternalUrl(match.courtMapUrl)!}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1 text-xs font-black px-2.5 py-1 rounded-full bg-yellow-400 text-zinc-950 hover:bg-yellow-300 transition"

@@ -5,6 +5,8 @@ export type TournamentFormatType =
   | 'KNOCKOUT_ONLY'
   | 'GROUPS_THEN_KNOCKOUT';
 
+export type TournamentStatus = 'ACTIVE' | 'FINISHED';
+
 export interface AuthUser {
   id: number;
   name: string;
@@ -53,6 +55,7 @@ export interface MatchSetState {
 export interface TournamentRules {
   id: number;
   name: string;
+  status?: TournamentStatus;
   formatType: TournamentFormatType;
   maxTeams: number;
   groupsCount: number;

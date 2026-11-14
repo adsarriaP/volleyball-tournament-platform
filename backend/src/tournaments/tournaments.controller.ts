@@ -227,6 +227,13 @@ export class TournamentsController {
     return this.tournamentsService.updateTournament(id, dto);
   }
 
+  @Patch(':id/finish')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async finishTournament(@Param('id', ParseIntPipe) id: number) {
+    return this.tournamentsService.finishTournament(id);
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)

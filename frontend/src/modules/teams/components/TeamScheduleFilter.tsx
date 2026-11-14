@@ -11,7 +11,10 @@ import {
   UserCheck,
   Users,
 } from 'lucide-react';
-import { resolveTeamLogoUrl } from '../../../shared/api/httpClient';
+import {
+  normalizeExternalUrl,
+  resolveTeamLogoUrl,
+} from '../../../shared/api/httpClient';
 import { useAuthStore } from '../../../shared/store/useAuthStore';
 import { EditMatchScheduleModal } from '../../matches/components/EditMatchScheduleModal';
 import {
@@ -328,9 +331,9 @@ export const TeamScheduleFilter: React.FC<TeamScheduleFilterProps> = ({
                             {m.courtNumber}
                           </span>
                         )}
-                        {m.courtMapUrl && (
+                        {normalizeExternalUrl(m.courtMapUrl) && (
                           <a
-                            href={m.courtMapUrl}
+                            href={normalizeExternalUrl(m.courtMapUrl)!}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-yellow-400/15 text-yellow-400 border border-yellow-400/30 font-bold hover:bg-yellow-400 hover:text-zinc-950 transition"

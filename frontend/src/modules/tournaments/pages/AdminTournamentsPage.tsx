@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
   Calendar,
+  CheckCircle2,
   ExternalLink,
   Loader2,
   Pencil,
@@ -16,6 +17,7 @@ import {
 import { apiFetch } from '../../../shared/api/httpClient';
 import { ConfirmDeleteModal } from '../../../shared/components/ConfirmDeleteModal';
 import { CustomDatePicker } from '../../../shared/components/CustomDatePicker';
+import { useToastStore } from '../../../shared/store/useToastStore';
 import {
   MatchSummary,
   Team,
@@ -186,10 +188,15 @@ export const AdminTournamentsPage: React.FC = () => {
     },
     onSuccess: (created) => {
       setForm(INITIAL_FORM_STATE);
-      setFeedback(`Torneo "${created.name}" creado correctamente.`);
+      const msg = `Torneo "${created.name}" creado correctamente.`;
+      setFeedback(msg);
+      useToastStore.getState().success(msg);
       void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
     },
-    onError: (err: Error) => setErrorMsg(err.message),
+    onError: (err: Error) => {
+      setErrorMsg(err.message);
+      useToastStore.getState().error(err.message);
+    },
   });
 
   const updateTournamentMutation = useMutation({
@@ -210,10 +217,41 @@ export const AdminTournamentsPage: React.FC = () => {
     onSuccess: (updated) => {
       setEditingTournamentId(null);
       setForm(INITIAL_FORM_STATE);
-      setFeedback(`Torneo "${updated.name}" actualizado correctamente.`);
+      const msg = `Torneo "${updated.name}" actualizado correctamente.`;
+      setFeedback(msg);
+      useToastStore.getState().success(msg);
       void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
     },
-    onError: (err: Error) => setErrorMsg(err.message),
+    onError: (err: Error) => {
+      setErrorMsg(err.message);
+      useToastStore.getState().error(err.message);
+    },
+  });
+
+  const [tournamentToFinish, setTournamentToFinish] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+
+  const finishTournamentMutation = useMutation({
+    mutationFn: (tournamentId: number) => {
+      setErrorMsg(null);
+      return apiFetch(`/tournaments/${tournamentId}/finish`, {
+        method: 'PATCH',
+      });
+    },
+    onSuccess: () => {
+      setTournamentToFinish(null);
+      const msg = 'Torneo finalizado correctamente. Seguirá visible en Torneos Activos.';
+      setFeedback(msg);
+      useToastStore.getState().success(msg);
+      void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
+    },
+    onError: (err: Error) => {
+      setTournamentToFinish(null);
+      setErrorMsg(err.message);
+      useToastStore.getState().error(err.message);
+    },
   });
 
   const deleteTournamentMutation = useMutation({
@@ -229,12 +267,15 @@ export const AdminTournamentsPage: React.FC = () => {
         setForm(INITIAL_FORM_STATE);
       }
       setTournamentToDelete(null);
-      setFeedback('Torneo eliminado correctamente.');
+      const msg = 'Torneo eliminado correctamente.';
+      setFeedback(msg);
+      useToastStore.getState().success(msg);
       void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
     },
     onError: (err: Error) => {
       setTournamentToDelete(null);
       setErrorMsg(err.message);
+      useToastStore.getState().error(err.message);
     },
   });
 
@@ -358,6 +399,25 @@ export const AdminTournamentsPage: React.FC = () => {
               }}
               className="space-y-3.5"
             >
+              {!editingTournamentId && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      formatType: 'LEAGUE_ONLY',
+                      maxTeams: '2',
+                      groupsCount: '1',
+                      qualifiersPerGroup: '2',
+                      maxSets: '3',
+                    }))
+                  }
+                  className="w-full py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/30 text-amber-300 text-[11px] font-bold transition text-center"
+                >
+                  ⚡ Preconfigurar Partido de Fogueo (2 equipos · 1 partido)
+                </button>
+              )}
+
               <div>
                 <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">
                   Nombre del Torneo
@@ -392,6 +452,9 @@ export const AdminTournamentsPage: React.FC = () => {
                   <option value="LEAGUE_ONLY">Liga (Todos contra todos)</option>
                   <option value="KNOCKOUT_ONLY">Eliminación Directa</option>
                 </select>
+                <p className="mt-1 text-[10px] text-zinc-500">
+                  Para fogueo de 2 equipos usa Liga o Eliminación Directa. Si hay menos de 2 equipos por grupo, se ajustará a Grupo Único.
+                </p>
               </div>
 
               {/* Cupo, Grupos y Clasificados (sin 0 delante) */}
@@ -677,6 +740,12 @@ export const AdminTournamentsPage: React.FC = () => {
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-zinc-950 border border-zinc-800 text-yellow-400">
                               {t.formatType}
                             </span>
+                            {t.status === 'FINISHED' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 uppercase">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Finalizado
+                              </span>
+                            )}
                           </div>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-400">
                             <span className="inline-flex items-center gap-1">
@@ -699,6 +768,19 @@ export const AdminTournamentsPage: React.FC = () => {
                             <ExternalLink className="w-3.5 h-3.5 text-yellow-400" />
                             Ver
                           </Link>
+                          {t.status !== 'FINISHED' && (
+                            <button
+                              type="button"
+                              disabled={finishTournamentMutation.isPending}
+                              onClick={() =>
+                                setTournamentToFinish({ id: t.id, name: t.name })
+                              }
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Finalizar
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => startEditTournament(t)}
@@ -758,6 +840,22 @@ export const AdminTournamentsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <ConfirmDeleteModal
+        isOpen={Boolean(tournamentToFinish)}
+        title="Finalizar Torneo"
+        description={`¿Confirmas que deseas finalizar "${tournamentToFinish?.name ?? ''}"? El torneo pasará a estado FINALIZADO y seguirá visible en la vista pública de Torneos Activos.`}
+        isLoading={finishTournamentMutation.isPending}
+        variant="warning"
+        confirmLabel="Aceptar, Finalizar"
+        loadingLabel="Finalizando..."
+        onCancel={() => setTournamentToFinish(null)}
+        onConfirm={() => {
+          if (tournamentToFinish) {
+            finishTournamentMutation.mutate(tournamentToFinish.id);
+          }
+        }}
+      />
 
       <ConfirmDeleteModal
         isOpen={Boolean(tournamentToDelete)}

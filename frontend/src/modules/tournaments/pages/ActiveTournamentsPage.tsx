@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Calendar,
+  CheckCircle2,
   ChevronRight,
   CircleDot as Volleyball,
   Radio,
@@ -25,11 +26,32 @@ interface TournamentListItem extends TournamentRules {
 
 export const ActiveTournamentsPage: React.FC = () => {
   const { user } = useAuthStore();
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'FINISHED'>('ALL');
 
   const { data: tournaments, isLoading } = useQuery<TournamentListItem[]>({
     queryKey: ['tournaments-list'],
     queryFn: () => apiFetch<TournamentListItem[]>('/tournaments'),
   });
+
+  const filteredTournaments = useMemo(() => {
+    if (!tournaments) return [];
+    if (statusFilter === 'ACTIVE') {
+      return tournaments.filter((t) => t.status !== 'FINISHED');
+    }
+    if (statusFilter === 'FINISHED') {
+      return tournaments.filter((t) => t.status === 'FINISHED');
+    }
+    return tournaments;
+  }, [tournaments, statusFilter]);
+
+  const activeCount = useMemo(
+    () => (tournaments ?? []).filter((t) => t.status !== 'FINISHED').length,
+    [tournaments],
+  );
+  const finishedTournamentsCount = useMemo(
+    () => (tournaments ?? []).filter((t) => t.status === 'FINISHED').length,
+    [tournaments],
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
@@ -104,9 +126,50 @@ export const ActiveTournamentsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Tarjetas de Torneos Activos */}
+      {/* Filtros de Torneos (Todos / En Curso / Finalizados) */}
+      {tournaments && tournaments.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setStatusFilter('ALL')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-black transition border ${
+                statusFilter === 'ALL'
+                  ? 'bg-yellow-400 text-zinc-950 border-yellow-400'
+                  : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:border-zinc-700'
+              }`}
+            >
+              Todos ({tournaments.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('ACTIVE')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-black transition border ${
+                statusFilter === 'ACTIVE'
+                  ? 'bg-yellow-400 text-zinc-950 border-yellow-400'
+                  : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:border-zinc-700'
+              }`}
+            >
+              En Curso ({activeCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('FINISHED')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-black transition border ${
+                statusFilter === 'FINISHED'
+                  ? 'bg-emerald-400 text-zinc-950 border-emerald-400'
+                  : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:border-zinc-700'
+              }`}
+            >
+              Finalizados ({finishedTournamentsCount})
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Tarjetas de Torneos Activos y Finalizados */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {tournaments?.map((t) => {
+        {filteredTournaments.map((t) => {
           const liveCount = t.matches.filter(
             (m) => m.status === 'IN_PROGRESS',
           ).length;
@@ -132,7 +195,12 @@ export const ActiveTournamentsPage: React.FC = () => {
                         ? 'Eliminación Directa'
                         : `${t.groupsCount ?? 2} Grupos → Clasifican ${t.qualifiersPerGroup}/Grupo`}
                   </span>
-                  {liveCount > 0 ? (
+                  {t.status === 'FINISHED' ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-black px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 uppercase">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      FINALIZADO
+                    </span>
+                  ) : liveCount > 0 ? (
                     <span className="inline-flex items-center gap-1.5 text-xs font-black px-3 py-1 rounded-full bg-yellow-400 text-zinc-950 animate-pulse">
                       <Radio className="w-3.5 h-3.5" />
                       {liveCount} EN VIVO

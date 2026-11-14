@@ -6,6 +6,9 @@ interface ConfirmDeleteModalProps {
   title: string;
   description: string;
   isLoading?: boolean;
+  confirmLabel?: string;
+  loadingLabel?: string;
+  variant?: 'danger' | 'warning';
   onCancel: () => void;
   onConfirm: () => void;
 }
@@ -15,10 +18,15 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
   title,
   description,
   isLoading = false,
+  confirmLabel = 'Aceptar, Eliminar',
+  loadingLabel = 'Eliminando...',
+  variant = 'danger',
   onCancel,
   onConfirm,
 }) => {
   if (!isOpen) return null;
+
+  const isWarning = variant === 'warning';
 
   return (
     <div
@@ -31,7 +39,13 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
     >
       <div className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-900 p-6 space-y-5 shadow-2xl">
         <div className="flex items-start gap-3.5">
-          <div className="w-10 h-10 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
+          <div
+            className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border ${
+              isWarning
+                ? 'bg-amber-500/15 border-amber-500/30 text-amber-400'
+                : 'bg-rose-500/15 border-rose-500/30 text-rose-400'
+            }`}
+          >
             <AlertTriangle className="w-5 h-5" />
           </div>
           <div className="space-y-1">
@@ -55,15 +69,19 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
             type="button"
             disabled={isLoading}
             onClick={onConfirm}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black bg-rose-500 hover:bg-rose-400 disabled:opacity-60 text-white transition shadow-lg shadow-rose-500/20"
+            className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black disabled:opacity-60 transition shadow-lg ${
+              isWarning
+                ? 'bg-amber-400 hover:bg-amber-300 text-zinc-950 shadow-amber-400/20'
+                : 'bg-rose-500 hover:bg-rose-400 text-white shadow-rose-500/20'
+            }`}
           >
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Eliminando...
+                {loadingLabel}
               </>
             ) : (
-              'Aceptar, Eliminar'
+              confirmLabel
             )}
           </button>
         </div>

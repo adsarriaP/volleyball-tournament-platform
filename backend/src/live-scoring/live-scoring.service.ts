@@ -195,14 +195,7 @@ export class LiveScoringService {
           pos6PlayerId: a6,
         },
       });
-
-      if (match.status === MatchStatus.SCHEDULED) {
-        await tx.match.update({
-          where: { id: match.id },
-          data: { status: MatchStatus.IN_PROGRESS },
-        });
-      }
-    });
+    }, { maxWait: 10000, timeout: 15000 });
 
     const livePayload = await this.matchesService.getMatchLivePayload(
       dto.matchId,
@@ -374,15 +367,14 @@ export class LiveScoringService {
           : match.status;
       const matchWinnerTeamId: number | null = match.winnerTeamId;
 
-      await tx.match.update({
-        where: { id: match.id },
-        data: {
-          status: updatedMatchStatus,
-          homeSetsWon: updatedHomeSetsWon,
-          awaySetsWon: updatedAwaySetsWon,
-          winnerTeamId: matchWinnerTeamId,
-        },
-      });
+      if (match.status === MatchStatus.SCHEDULED) {
+        await tx.match.update({
+          where: { id: match.id },
+          data: {
+            status: updatedMatchStatus,
+          },
+        });
+      }
 
       const payload: MatchScoreUpdatedPayload = {
         matchId: match.id,
@@ -407,7 +399,7 @@ export class LiveScoringService {
       };
 
       return payload;
-    });
+    }, { maxWait: 10000, timeout: 15000 });
 
     const liveState = await this.matchesService.getMatchLivePayload(
       dto.matchId,

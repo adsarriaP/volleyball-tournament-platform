@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowRight,
+  BookOpen,
   Calendar,
   CheckCircle2,
   ChevronDown,
@@ -18,6 +19,8 @@ import {
   Users,
 } from 'lucide-react';
 import { apiFetch } from '../../../shared/api/httpClient';
+import { ConfirmDeleteModal } from '../../../shared/components/ConfirmDeleteModal';
+import { useToastStore } from '../../../shared/store/useToastStore';
 import { AdminSidebarLayout } from '../components/AdminSidebarLayout';
 import {
   AuthUser,
@@ -33,6 +36,7 @@ interface TournamentWithMatches extends TournamentRules {
 
 export const AdminDashboardPage: React.FC = () => {
   const queryClient = useQueryClient();
+  const toast = useToastStore();
   const [feedback, setFeedback] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -69,6 +73,8 @@ export const AdminDashboardPage: React.FC = () => {
     winnerTeamId: string;
     sets: { setNumber: number; homeScore: number; awayScore: number }[];
   } | null>(null);
+  const [finishingTournament, setFinishingTournament] =
+    useState<TournamentWithMatches | null>(null);
 
   const { data: tournaments } = useQuery<TournamentWithMatches[]>({
     queryKey: ['tournaments-list'],
@@ -78,6 +84,27 @@ export const AdminDashboardPage: React.FC = () => {
   const { data: referees } = useQuery<AuthUser[]>({
     queryKey: ['admin-referees'],
     queryFn: () => apiFetch<AuthUser[]>('/auth/referees'),
+  });
+
+  const finishTournamentMutation = useMutation({
+    mutationFn: (tournamentId: number) => {
+      setErrorMsg(null);
+      return apiFetch(`/tournaments/${tournamentId}/finish`, {
+        method: 'PATCH',
+      });
+    },
+    onSuccess: () => {
+      const msg = 'Torneo finalizado correctamente. Seguirá visible en Torneos Activos.';
+      setFeedback(msg);
+      toast.success(msg);
+      setFinishingTournament(null);
+      queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
+    },
+    onError: (err: Error) => {
+      setErrorMsg(err.message);
+      toast.error(err.message);
+      setFinishingTournament(null);
+    },
   });
 
   const startTournamentMutation = useMutation({
@@ -93,12 +120,15 @@ export const AdminDashboardPage: React.FC = () => {
     },
     onSuccess: (res, tournamentId) => {
       setExpandedTournamentIds((prev) => ({ ...prev, [tournamentId]: true }));
-      setFeedback(
-        `¡Torneo iniciado! Se generaron ${res.totalMatchesGenerated} cruces con horarios entre 8:00 AM y 6:00 PM (10 partidos garantizados por equipo).`,
-      );
+      const msg = `¡Torneo iniciado! Se generaron ${res.totalMatchesGenerated} ${res.totalMatchesGenerated === 1 ? 'partido' : 'cruces'}.`;
+      setFeedback(msg);
+      toast.success(msg);
       void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
     },
-    onError: (err: Error) => setErrorMsg(err.message),
+    onError: (err: Error) => {
+      setErrorMsg(err.message);
+      toast.error(err.message);
+    },
   });
 
   const advanceKnockoutMutation = useMutation({
@@ -112,12 +142,15 @@ export const AdminDashboardPage: React.FC = () => {
       );
     },
     onSuccess: (res) => {
-      setFeedback(
-        `Fase eliminatoria generada con ${res.totalKnockoutMatches} partidos con los mejores de cada grupo.`,
-      );
+      const msg = `Fase eliminatoria generada con ${res.totalKnockoutMatches} partidos con los mejores de cada grupo.`;
+      setFeedback(msg);
+      toast.success(msg);
       void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
     },
-    onError: (err: Error) => setErrorMsg(err.message),
+    onError: (err: Error) => {
+      setErrorMsg(err.message);
+      toast.error(err.message);
+    },
   });
 
   const scheduleMatchMutation = useMutation({
@@ -156,10 +189,15 @@ export const AdminDashboardPage: React.FC = () => {
       });
     },
     onSuccess: () => {
-      setFeedback('Partido actualizado (Cancha, Mapa y Juez guardados).');
+      const msg = 'Partido actualizado (Cancha, Mapa y Juez guardados).';
+      setFeedback(msg);
+      toast.success(msg);
       void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
     },
-    onError: (err: Error) => setErrorMsg(err.message),
+    onError: (err: Error) => {
+      setErrorMsg(err.message);
+      toast.error(err.message);
+    },
   });
 
   const updateMatchResultMutation = useMutation({
@@ -183,10 +221,15 @@ export const AdminDashboardPage: React.FC = () => {
     },
     onSuccess: () => {
       setEditingMatchResult(null);
-      setFeedback('Resultado / Marcador del partido corregido exitosamente.');
+      const msg = 'Resultado / Marcador del partido corregido exitosamente.';
+      setFeedback(msg);
+      toast.success(msg);
       void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
     },
-    onError: (err: Error) => setErrorMsg(err.message),
+    onError: (err: Error) => {
+      setErrorMsg(err.message);
+      toast.error(err.message);
+    },
   });
 
   const updateEditField = (
@@ -244,15 +287,24 @@ export const AdminDashboardPage: React.FC = () => {
 
         <div className="max-w-7xl mx-auto space-y-6 relative z-10">
           {/* Cabecera limpia */}
-          <div>
-            <h1 className="text-2xl md:text-3xl font-black text-white flex items-center gap-2.5">
-              <ShieldAlert className="w-7 h-7 text-yellow-400 shrink-0" />
-              <span>Panel de Administración • VoleiScore</span>
-            </h1>
-            <p className="text-xs md:text-sm text-zinc-400 mt-1">
-              Centro de control para administrar torneos, equipos, jueces y
-              programar canchas en tiempo real.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-black text-white flex items-center gap-2.5">
+                <ShieldAlert className="w-7 h-7 text-yellow-400 shrink-0" />
+                <span>Panel de Administración • VoleiScore</span>
+              </h1>
+              <p className="text-xs md:text-sm text-zinc-400 mt-1">
+                Centro de control para administrar torneos, equipos, jueces y
+                programar canchas en tiempo real.
+              </p>
+            </div>
+            <Link
+              to="/admin/help"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black bg-zinc-900 hover:bg-zinc-800 text-yellow-400 border border-zinc-800 hover:border-yellow-400/50 transition shrink-0"
+            >
+              <BookOpen className="w-4 h-4" />
+              Guía de Uso
+            </Link>
           </div>
 
           {/* KPIs de Resumen Rápido */}
@@ -369,8 +421,14 @@ export const AdminDashboardPage: React.FC = () => {
             >
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800 pb-4">
                 <div>
-                  <h2 className="text-xl font-black text-white flex items-center gap-2.5">
+                  <h2 className="text-xl font-black text-white flex flex-wrap items-center gap-2.5">
                     {tournament.name}
+                    {tournament.status === 'FINISHED' && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Finalizado
+                      </span>
+                    )}
                     <Link
                       to={`/tournaments/${tournament.id}`}
                       className="text-xs font-black text-yellow-400 hover:underline"
@@ -407,7 +465,9 @@ export const AdminDashboardPage: React.FC = () => {
                       ) : (
                         <>
                           <Play className="w-4 h-4 fill-current" />
-                          Iniciar Torneo (Generar 10 Partidos/Equipo de 8AM a 6PM)
+                          {tournament.teams.length === 2
+                            ? 'Iniciar Torneo (Generar 1 Partido Directo)'
+                            : 'Iniciar Torneo (Generar Cruces de 8AM a 6PM)'}
                         </>
                       )}
                     </button>
@@ -415,7 +475,10 @@ export const AdminDashboardPage: React.FC = () => {
                     <>
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-zinc-950 text-yellow-400 border border-zinc-800">
                         <CheckCircle2 className="w-4 h-4" />
-                        {tournament.matches.length} Cruces Programados (10 por equipo)
+                        {tournament.matches.length}{' '}
+                        {tournament.matches.length === 1
+                          ? 'Partido Programado'
+                          : 'Cruces Programados'}
                       </span>
                       <button
                         type="button"
@@ -439,6 +502,17 @@ export const AdminDashboardPage: React.FC = () => {
                         )}
                       </button>
                     </>
+                  )}
+                  {tournament.status !== 'FINISHED' && (
+                    <button
+                      type="button"
+                      disabled={finishTournamentMutation.isPending}
+                      onClick={() => setFinishingTournament(tournament)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Finalizar Torneo
+                    </button>
                   )}
                 </div>
               </div>
@@ -832,6 +906,26 @@ export const AdminDashboardPage: React.FC = () => {
           ))}
         </div>
       </div>
+
+      <ConfirmDeleteModal
+        isOpen={Boolean(finishingTournament)}
+        title="Finalizar Torneo"
+        description={
+          finishingTournament
+            ? `¿Confirmas que deseas finalizar "${finishingTournament.name}"? El torneo pasará a estado FINALIZADO y seguirá visible en la vista pública de Torneos Activos.`
+            : ''
+        }
+        isLoading={finishTournamentMutation.isPending}
+        variant="warning"
+        confirmLabel="Aceptar, Finalizar"
+        loadingLabel="Finalizando..."
+        onCancel={() => setFinishingTournament(null)}
+        onConfirm={() => {
+          if (finishingTournament) {
+            finishTournamentMutation.mutate(finishingTournament.id);
+          }
+        }}
+      />
 
       {/* Modal: Corregir Marcador / Resultado del Partido */}
       {editingMatchResult && (
