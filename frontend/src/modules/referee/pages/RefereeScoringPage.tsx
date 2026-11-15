@@ -5,6 +5,7 @@ import { ArrowLeft, CheckCircle2, Trophy, Users } from 'lucide-react';
 import { apiFetch } from '../../../shared/api/httpClient';
 import { useToastStore } from '../../../shared/store/useToastStore';
 import { LiveScoreBanner } from '../../../shared/components/LiveScoreBanner';
+import { ScoreboardSkeleton } from '../../../shared/components/LoadingUI';
 import { useMatchLiveSocket } from '../../../shared/hooks/useMatchLiveSocket';
 import { MatchLivePayload, Player } from '../../../shared/types/volleyball.types';
 import { RefereeScoreboardControl } from '../components/RefereeScoreboardControl';
@@ -248,9 +249,7 @@ export const RefereeScoringPage: React.FC = () => {
 
   if (isLoading || !activeMatch) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-10 text-center text-slate-400">
-        Cargando consola táctil del partido...
-      </div>
+      <ScoreboardSkeleton label="Cargando consola táctil del partido..." />
     );
   }
 

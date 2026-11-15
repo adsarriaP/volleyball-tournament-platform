@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '../../../shared/api/httpClient';
 import { ConfirmDeleteModal } from '../../../shared/components/ConfirmDeleteModal';
+import { ListRowsSkeleton } from '../../../shared/components/LoadingUI';
 import { CustomDatePicker } from '../../../shared/components/CustomDatePicker';
 import { useToastStore } from '../../../shared/store/useToastStore';
 import {
@@ -686,8 +687,8 @@ export const AdminTournamentsPage: React.FC = () => {
             </div>
 
             {isLoading ? (
-              <div className="p-8 rounded-3xl border border-zinc-800 bg-zinc-900/60 text-center text-xs text-zinc-400">
-                Cargando torneos...
+              <div className="p-4 rounded-3xl border border-zinc-800 bg-zinc-900/60">
+                <ListRowsSkeleton rows={3} />
               </div>
             ) : tournaments.length === 0 ? (
               <div className="p-8 rounded-3xl border border-zinc-800 bg-zinc-900/60 text-center text-xs text-zinc-400">

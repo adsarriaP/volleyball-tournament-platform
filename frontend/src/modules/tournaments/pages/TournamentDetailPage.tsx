@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Calendar, Trophy, Users } from 'lucide-react';
 import { apiFetch } from '../../../shared/api/httpClient';
+import { TournamentDetailSkeleton } from '../../../shared/components/LoadingUI';
 import { TournamentDetail } from '../../../shared/types/volleyball.types';
 import { TeamScheduleFilter } from '../../teams/components/TeamScheduleFilter';
 
@@ -40,11 +41,7 @@ export const TournamentDetailPage: React.FC = () => {
   };
 
   if (isLoading || !tournament) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-10 text-center text-zinc-400">
-        Cargando centro de resultados del torneo...
-      </div>
-    );
+    return <TournamentDetailSkeleton />;
   }
 
   return (

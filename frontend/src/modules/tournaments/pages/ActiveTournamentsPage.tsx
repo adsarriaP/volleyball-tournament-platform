@@ -12,12 +12,16 @@ import {
   Users,
 } from 'lucide-react';
 import { apiFetch, resolveTeamLogoUrl } from '../../../shared/api/httpClient';
+import { CardGridSkeleton } from '../../../shared/components/LoadingUI';
 import { useAuthStore } from '../../../shared/store/useAuthStore';
 import {
   MatchSummary,
   Team,
   TournamentRules,
 } from '../../../shared/types/volleyball.types';
+import { TournamentEntrySplash } from '../components/TournamentEntrySplash';
+
+const ENTRY_SPLASH_KEY = 'voleiscore_entry_seen';
 
 interface TournamentListItem extends TournamentRules {
   teams: Team[];
@@ -27,6 +31,22 @@ interface TournamentListItem extends TournamentRules {
 export const ActiveTournamentsPage: React.FC = () => {
   const { user } = useAuthStore();
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'FINISHED'>('ALL');
+  const [showSplash, setShowSplash] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem(ENTRY_SPLASH_KEY) !== 'true';
+    } catch {
+      return true;
+    }
+  });
+
+  const handleEnterApp = () => {
+    try {
+      sessionStorage.setItem(ENTRY_SPLASH_KEY, 'true');
+    } catch {
+      // Ignorar si sessionStorage no está disponible
+    }
+    setShowSplash(false);
+  };
 
   const { data: tournaments, isLoading } = useQuery<TournamentListItem[]>({
     queryKey: ['tournaments-list'],
@@ -54,8 +74,10 @@ export const ActiveTournamentsPage: React.FC = () => {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-      {/* Hero Banner Deportivo con Ilustración de Remate de Voleibol */}
+    <>
+      {showSplash && <TournamentEntrySplash onEnter={handleEnterApp} />}
+      <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      {/* Hero Banner Deportivo de Torneos de Voleibol */}
       <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 p-6 md:p-10 shadow-2xl flex flex-col lg:flex-row items-center justify-between gap-8">
         {/* Glow decorativo de fondo */}
         <div className="absolute top-0 right-1/4 w-96 h-96 bg-yellow-400/10 rounded-full blur-3xl pointer-events-none" />
@@ -95,20 +117,22 @@ export const ActiveTournamentsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Ilustración de Voleibol en Vivo */}
+        {/* Imagen alusiva a Gestión de Torneos de Voleibol */}
         <div className="w-full max-w-md lg:max-w-lg shrink-0 z-10 flex justify-center">
           <img
-            src="/assets/volleyball-hero.svg"
-            alt="Voleibol Remate en Vivo"
-            className="w-full h-auto max-h-72 object-contain drop-shadow-[0_15px_35px_rgba(250,204,21,0.25)] rounded-2xl"
+            src="/assets/tournament-banner.jpg"
+            alt="Plataforma de Torneos de Voleibol VoleiScore"
+            className="w-full h-auto max-h-72 object-cover rounded-2xl border border-zinc-800/80 drop-shadow-[0_15px_35px_rgba(250,204,21,0.2)]"
           />
         </div>
       </div>
 
       {isLoading && (
-        <div className="p-10 rounded-3xl border border-zinc-800 bg-zinc-900 text-center text-zinc-400">
-          Cargando torneos activos...
-        </div>
+        <CardGridSkeleton
+          count={6}
+          columnsClass="grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+          label="Cargando torneos activos..."
+        />
       )}
 
       {!isLoading && tournaments && tournaments.length === 0 && (
@@ -249,6 +273,15 @@ export const ActiveTournamentsPage: React.FC = () => {
                               src={logo}
                               alt={team.name}
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.currentTarget;
+                                target.style.display = 'none';
+                                if (target.parentElement) {
+                                  target.parentElement.textContent = team.name
+                                    .slice(0, 2)
+                                    .toUpperCase();
+                                }
+                              }}
                             />
                           ) : (
                             team.name.slice(0, 2).toUpperCase()
@@ -265,8 +298,8 @@ export const ActiveTournamentsPage: React.FC = () => {
                 )}
               </div>
 
-              <div className="pt-4 border-t border-zinc-800 flex items-center justify-between text-xs">
-                <div className="flex gap-4 text-zinc-300">
+              <div className="pt-4 border-t border-zinc-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-zinc-300">
                   <span>
                     En vivo: <strong className="text-yellow-400">{liveCount}</strong>
                   </span>
@@ -277,7 +310,7 @@ export const ActiveTournamentsPage: React.FC = () => {
                     Finalizados: <strong className="text-zinc-400">{finishedCount}</strong>
                   </span>
                 </div>
-                <span className="inline-flex items-center gap-1 font-black text-yellow-400 group-hover:translate-x-1 transition">
+                <span className="inline-flex items-center gap-1 font-black text-yellow-400 group-hover:translate-x-1 transition whitespace-nowrap">
                   Abrir Vista SofaScore
                   <ChevronRight className="w-4 h-4" />
                 </span>
@@ -287,5 +320,6 @@ export const ActiveTournamentsPage: React.FC = () => {
         })}
       </div>
     </div>
+    </>
   );
 };

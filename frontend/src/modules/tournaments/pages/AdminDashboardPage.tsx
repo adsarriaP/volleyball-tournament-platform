@@ -13,10 +13,12 @@ import {
   Loader2,
   MapPin,
   Play,
+  Plus,
   ShieldAlert,
   Trophy,
   UserPlus,
   Users,
+  X,
 } from 'lucide-react';
 import { apiFetch } from '../../../shared/api/httpClient';
 import { ConfirmDeleteModal } from '../../../shared/components/ConfirmDeleteModal';
@@ -75,15 +77,78 @@ export const AdminDashboardPage: React.FC = () => {
   } | null>(null);
   const [finishingTournament, setFinishingTournament] =
     useState<TournamentWithMatches | null>(null);
+  const [isFriendlyModalOpen, setIsFriendlyModalOpen] = useState(false);
+  const [friendlyForm, setFriendlyForm] = useState({
+    tournamentId: '',
+    homeTeamId: '',
+    awayTeamId: '',
+    scheduledAt: '',
+    courtNumber: '',
+    courtMapUrl: '',
+    refereeId: '',
+  });
 
   const { data: tournaments } = useQuery<TournamentWithMatches[]>({
     queryKey: ['tournaments-list'],
     queryFn: () => apiFetch<TournamentWithMatches[]>('/tournaments'),
   });
 
+  const { data: allTeams } = useQuery<Team[]>({
+    queryKey: ['all-teams'],
+    queryFn: () => apiFetch<Team[]>('/teams'),
+  });
+
   const { data: referees } = useQuery<AuthUser[]>({
     queryKey: ['admin-referees'],
     queryFn: () => apiFetch<AuthUser[]>('/auth/referees'),
+  });
+
+  const createFriendlyMatchMutation = useMutation({
+    mutationFn: () => {
+      setErrorMsg(null);
+      return apiFetch<MatchSummary & { tournamentId: number }>('/matches', {
+        method: 'POST',
+        body: JSON.stringify({
+          tournamentId: friendlyForm.tournamentId
+            ? Number(friendlyForm.tournamentId)
+            : undefined,
+          homeTeamId: Number(friendlyForm.homeTeamId),
+          awayTeamId: Number(friendlyForm.awayTeamId),
+          scheduledAt: friendlyForm.scheduledAt || null,
+          courtNumber: friendlyForm.courtNumber.trim() || null,
+          courtMapUrl: friendlyForm.courtMapUrl.trim() || null,
+          refereeId: friendlyForm.refereeId
+            ? Number(friendlyForm.refereeId)
+            : null,
+        }),
+      });
+    },
+    onSuccess: (created) => {
+      const msg = 'Partido amistoso / de fogueo registrado correctamente.';
+      setFeedback(msg);
+      toast.success(msg);
+      setIsFriendlyModalOpen(false);
+      setFriendlyForm({
+        tournamentId: '',
+        homeTeamId: '',
+        awayTeamId: '',
+        scheduledAt: '',
+        courtNumber: '',
+        courtMapUrl: '',
+        refereeId: '',
+      });
+      if (created?.tournamentId) {
+        setExpandedTournamentIds((prev) => ({
+          ...prev,
+          [created.tournamentId]: true,
+        }));
+      }
+      void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
+    },
+    onError: (err: Error) => {
+      setErrorMsg(err.message);
+      toast.error(err.message);
+    },
   });
 
   const finishTournamentMutation = useMutation({
@@ -298,13 +363,23 @@ export const AdminDashboardPage: React.FC = () => {
                 programar canchas en tiempo real.
               </p>
             </div>
-            <Link
-              to="/admin/help"
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black bg-zinc-900 hover:bg-zinc-800 text-yellow-400 border border-zinc-800 hover:border-yellow-400/50 transition shrink-0"
-            >
-              <BookOpen className="w-4 h-4" />
-              Guía de Uso
-            </Link>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsFriendlyModalOpen(true)}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black bg-yellow-400 hover:bg-yellow-300 text-zinc-950 shadow-lg shadow-yellow-400/20 transition"
+              >
+                <Plus className="w-4 h-4" />
+                Nuevo Amistoso / Fogueo
+              </button>
+              <Link
+                to="/admin/help"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black bg-zinc-900 hover:bg-zinc-800 text-yellow-400 border border-zinc-800 hover:border-yellow-400/50 transition"
+              >
+                <BookOpen className="w-4 h-4" />
+                Guía de Uso
+              </Link>
+            </div>
           </div>
 
           {/* KPIs de Resumen Rápido */}
@@ -1136,6 +1211,235 @@ export const AdminDashboardPage: React.FC = () => {
                   </>
                 ) : (
                   'Guardar Resultado'
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Modal: Registrar Partido Amistoso / Fogueo */}
+      {isFriendlyModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setIsFriendlyModalOpen(false)}
+        >
+          <form
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!friendlyForm.homeTeamId || !friendlyForm.awayTeamId) {
+                toast.error('Selecciona el equipo local y el visitante.');
+                return;
+              }
+              if (friendlyForm.homeTeamId === friendlyForm.awayTeamId) {
+                toast.error('El equipo local y visitante deben ser diferentes.');
+                return;
+              }
+              createFriendlyMatchMutation.mutate();
+            }}
+            className="w-full max-w-lg rounded-3xl border border-zinc-800 bg-zinc-950 p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-black text-white flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-yellow-400" />
+                  Nuevo Partido Amistoso / Fogueo
+                </h3>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Crea un enfrentamiento directo sin generar fixture completo.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsFriendlyModalOpen(false)}
+                className="p-1.5 rounded-xl bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-black uppercase tracking-wider text-zinc-400 mb-1">
+                  Torneo contenedor (opcional)
+                </label>
+                <select
+                  value={friendlyForm.tournamentId}
+                  onChange={(e) =>
+                    setFriendlyForm((p) => ({
+                      ...p,
+                      tournamentId: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:border-yellow-400 outline-none"
+                >
+                  <option value="">
+                    Automático: Partidos Amistosos / Fogueo
+                  </option>
+                  {tournaments
+                    ?.filter((t) => t.status === 'ACTIVE')
+                    .map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-zinc-400 mb-1">
+                    Equipo Local *
+                  </label>
+                  <select
+                    required
+                    value={friendlyForm.homeTeamId}
+                    onChange={(e) =>
+                      setFriendlyForm((p) => ({
+                        ...p,
+                        homeTeamId: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:border-yellow-400 outline-none"
+                  >
+                    <option value="">Selecciona equipo...</option>
+                    {allTeams?.map((team) => (
+                      <option key={team.id} value={team.id}>
+                        {team.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-zinc-400 mb-1">
+                    Equipo Visitante *
+                  </label>
+                  <select
+                    required
+                    value={friendlyForm.awayTeamId}
+                    onChange={(e) =>
+                      setFriendlyForm((p) => ({
+                        ...p,
+                        awayTeamId: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:border-yellow-400 outline-none"
+                  >
+                    <option value="">Selecciona equipo...</option>
+                    {allTeams
+                      ?.filter((team) => String(team.id) !== friendlyForm.homeTeamId)
+                      .map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-zinc-400 mb-1">
+                    Fecha y Hora
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={friendlyForm.scheduledAt}
+                    onChange={(e) =>
+                      setFriendlyForm((p) => ({
+                        ...p,
+                        scheduledAt: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:border-yellow-400 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-zinc-400 mb-1">
+                    Juez Asignado
+                  </label>
+                  <select
+                    value={friendlyForm.refereeId}
+                    onChange={(e) =>
+                      setFriendlyForm((p) => ({
+                        ...p,
+                        refereeId: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:border-yellow-400 outline-none"
+                  >
+                    <option value="">Sin juez asignado</option>
+                    {referees?.map((ref) => (
+                      <option key={ref.id} value={ref.id}>
+                        {ref.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-zinc-400 mb-1">
+                    Cancha / Sede
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Coliseo Principal"
+                    value={friendlyForm.courtNumber}
+                    onChange={(e) =>
+                      setFriendlyForm((p) => ({
+                        ...p,
+                        courtNumber: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:border-yellow-400 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-zinc-400 mb-1">
+                    Link Google Maps
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://maps.google.com/..."
+                    value={friendlyForm.courtMapUrl}
+                    onChange={(e) =>
+                      setFriendlyForm((p) => ({
+                        ...p,
+                        courtMapUrl: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:border-yellow-400 outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setIsFriendlyModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 transition"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={createFriendlyMatchMutation.isPending}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black bg-yellow-400 hover:bg-yellow-300 disabled:opacity-60 text-zinc-950 transition"
+              >
+                {createFriendlyMatchMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Creando...
+                  </>
+                ) : (
+                  'Crear Partido'
                 )}
               </button>
             </div>

@@ -12,6 +12,7 @@ import {
   apiFetch,
   normalizeExternalUrl,
 } from '../../../shared/api/httpClient';
+import { CardGridSkeleton } from '../../../shared/components/LoadingUI';
 import { MatchSummary } from '../../../shared/types/volleyball.types';
 
 export const RefereeMatchesPage: React.FC = () => {
@@ -40,9 +41,11 @@ export const RefereeMatchesPage: React.FC = () => {
       </div>
 
       {isLoading && (
-        <div className="p-8 rounded-2xl border border-slate-800 bg-slate-900/50 text-center text-slate-400">
-          Cargando tus partidos asignados...
-        </div>
+        <CardGridSkeleton
+          count={4}
+          columnsClass="grid-cols-1 md:grid-cols-2"
+          label="Cargando tus partidos asignados..."
+        />
       )}
 
       {error && (

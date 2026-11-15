@@ -5,6 +5,7 @@ import {
   Param,
   ParseIntPipe,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -64,6 +65,42 @@ export class SetScoreInputDto {
   awayScore!: number;
 }
 
+export class CreateFriendlyMatchDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  tournamentId?: number;
+
+  @Type(() => Number)
+  @IsInt()
+  homeTeamId!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  awayTeamId!: number;
+
+  @IsOptional()
+  @IsString()
+  scheduledAt?: string | null;
+
+  @IsOptional()
+  @IsString()
+  courtNumber?: string | null;
+
+  @IsOptional()
+  @IsString()
+  courtMapUrl?: string | null;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  refereeId?: number | null;
+
+  @IsOptional()
+  @IsString()
+  phaseName?: string | null;
+}
+
 export class UpdateMatchResultDto {
   @IsOptional()
   @Type(() => Number)
@@ -121,6 +158,13 @@ export class MatchesController {
   @Get(':id/live')
   async getMatchLive(@Param('id', ParseIntPipe) id: number) {
     return this.matchesService.getMatchLivePayload(id);
+  }
+
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async createFriendlyMatch(@Body() dto: CreateFriendlyMatchDto) {
+    return this.matchesService.createFriendlyMatch(dto);
   }
 
   @Patch(':id/schedule')

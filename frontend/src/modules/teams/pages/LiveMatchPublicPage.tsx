@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { apiFetch } from '../../../shared/api/httpClient';
 import { LiveScoreBanner } from '../../../shared/components/LiveScoreBanner';
+import { ScoreboardSkeleton } from '../../../shared/components/LoadingUI';
 import { useMatchLiveSocket } from '../../../shared/hooks/useMatchLiveSocket';
 import { MatchLivePayload } from '../../../shared/types/volleyball.types';
 import { VolleyballCourt } from '../../referee/components/VolleyballCourt';
@@ -35,9 +36,7 @@ export const LiveMatchPublicPage: React.FC = () => {
 
   if (isLoading || !activeMatch) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-10 text-center text-slate-400">
-        Conectando al marcador en tiempo real...
-      </div>
+      <ScoreboardSkeleton label="Conectando al marcador en tiempo real..." />
     );
   }
 

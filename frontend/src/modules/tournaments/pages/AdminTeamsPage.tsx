@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { apiFetch, resolveTeamLogoUrl } from '../../../shared/api/httpClient';
 import { ConfirmDeleteModal } from '../../../shared/components/ConfirmDeleteModal';
+import { ListRowsSkeleton } from '../../../shared/components/LoadingUI';
 import { useToastStore } from '../../../shared/store/useToastStore';
 import {
   MatchSummary,
@@ -422,9 +423,7 @@ export const AdminTeamsPage: React.FC = () => {
                 Selecciona un torneo arriba para ver y administrar sus equipos.
               </div>
             ) : isLoadingTeams ? (
-              <div className="p-8 text-center text-xs text-zinc-400">
-                Cargando equipos...
-              </div>
+              <ListRowsSkeleton rows={5} />
             ) : filteredTeams.length === 0 ? (
               <div className="p-8 text-center text-xs text-zinc-500">
                 {teamsInTournament.length === 0

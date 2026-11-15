@@ -1,5 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { MatchStatus } from '@prisma/client';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  MatchStatus,
+  PhaseType,
+  TournamentFormatType,
+  TournamentStatus,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface ScheduleMatchInput {
@@ -9,9 +18,122 @@ export interface ScheduleMatchInput {
   refereeId?: number | null;
 }
 
+export interface CreateFriendlyMatchInput {
+  tournamentId?: number;
+  homeTeamId: number;
+  awayTeamId: number;
+  scheduledAt?: string | null;
+  courtNumber?: string | null;
+  courtMapUrl?: string | null;
+  refereeId?: number | null;
+  phaseName?: string | null;
+}
+
 @Injectable()
 export class MatchesService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Permite al Administrador crear manualmente un partido amistoso o de fogueo
+   * sin depender del generador automático de fixture.
+   */
+  public async createFriendlyMatch(input: CreateFriendlyMatchInput) {
+    if (input.homeTeamId === input.awayTeamId) {
+      throw new BadRequestException(
+        'El equipo local y el equipo visitante deben ser diferentes.',
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const [homeTeam, awayTeam] = await Promise.all([
+        tx.team.findUnique({ where: { id: input.homeTeamId } }),
+        tx.team.findUnique({ where: { id: input.awayTeamId } }),
+      ]);
+
+      if (!homeTeam) {
+        throw new NotFoundException(
+          `El equipo local #${input.homeTeamId} no existe.`,
+        );
+      }
+      if (!awayTeam) {
+        throw new NotFoundException(
+          `El equipo visitante #${input.awayTeamId} no existe.`,
+        );
+      }
+
+      let tournament = input.tournamentId
+        ? await tx.tournament.findUnique({ where: { id: input.tournamentId } })
+        : await tx.tournament.findFirst({
+            where: {
+              name: 'Partidos Amistosos / Fogueo',
+              status: TournamentStatus.ACTIVE,
+            },
+            orderBy: { id: 'desc' },
+          });
+
+      if (input.tournamentId && !tournament) {
+        throw new NotFoundException(
+          `El torneo #${input.tournamentId} no existe.`,
+        );
+      }
+
+      if (!tournament) {
+        tournament = await tx.tournament.create({
+          data: {
+            name: 'Partidos Amistosos / Fogueo',
+            formatType: TournamentFormatType.LEAGUE_ONLY,
+            status: TournamentStatus.ACTIVE,
+            maxTeams: 100,
+            groupsCount: 1,
+            maxSets: 3,
+            pointsRegularSet: 25,
+            pointsFinalSet: 15,
+            pointsDifference: 2,
+            qualifiersPerGroup: 1,
+          },
+        });
+      }
+
+      let phase = await tx.tournamentPhase.findFirst({
+        where: { tournamentId: tournament.id },
+        orderBy: { phaseOrder: 'asc' },
+      });
+
+      if (!phase) {
+        phase = await tx.tournamentPhase.create({
+          data: {
+            tournamentId: tournament.id,
+            name: input.phaseName?.trim() || 'Amistosos / Fogueo',
+            phaseOrder: 1,
+            phaseType: PhaseType.ROUND_ROBIN,
+          },
+        });
+      }
+
+      return tx.match.create({
+        data: {
+          tournamentId: tournament.id,
+          phaseId: phase.id,
+          homeTeamId: input.homeTeamId,
+          awayTeamId: input.awayTeamId,
+          scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null,
+          courtNumber: input.courtNumber?.trim() || null,
+          courtMapUrl: input.courtMapUrl?.trim() || null,
+          refereeId: input.refereeId ?? null,
+          status: MatchStatus.SCHEDULED,
+        },
+        include: {
+          tournament: true,
+          phase: true,
+          homeTeam: true,
+          awayTeam: true,
+          referee: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      });
+    });
+  }
 
   /**
    * Exclusivo para el Administrador: registra o actualiza la fecha/hora (`scheduledAt`),

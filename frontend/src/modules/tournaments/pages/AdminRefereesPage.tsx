@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '../../../shared/api/httpClient';
 import { ConfirmDeleteModal } from '../../../shared/components/ConfirmDeleteModal';
+import { ListRowsSkeleton } from '../../../shared/components/LoadingUI';
 import { useToastStore } from '../../../shared/store/useToastStore';
 import { AuthUser } from '../../../shared/types/volleyball.types';
 import { AdminSidebarLayout } from '../components/AdminSidebarLayout';
@@ -268,9 +269,7 @@ export const AdminRefereesPage: React.FC = () => {
             </div>
 
             {isLoading ? (
-              <div className="p-8 text-center text-xs text-zinc-400">
-                Cargando jueces...
-              </div>
+              <ListRowsSkeleton rows={4} />
             ) : filteredReferees.length === 0 ? (
               <div className="p-8 text-center text-xs text-zinc-500">
                 {referees.length === 0
