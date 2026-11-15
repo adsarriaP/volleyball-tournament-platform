@@ -200,8 +200,6 @@ export const RefereeScoringPage: React.FC = () => {
           matchId: numericMatchId,
           setNumber: setNumberToStart,
           servingTeamId: servingTeamId || activeMatch?.homeTeam.id,
-          homeLineupPlayerIds: homePositions,
-          awayLineupPlayerIds: awayPositions,
         }),
       });
     },
@@ -315,7 +313,7 @@ export const RefereeScoringPage: React.FC = () => {
                 {activeMatch.currentSet.awayScore})!
               </h3>
               <p className="text-xs text-slate-300">
-                Registra la alineación inicial para dar comienzo al Set{' '}
+                Elige qué equipo realiza el primer saque para dar comienzo al Set{' '}
                 {activeMatch.currentSet.setNumber + 1}.
               </p>
             </div>
@@ -360,11 +358,14 @@ export const RefereeScoringPage: React.FC = () => {
           finishSetMutation.isPending || finishMatchMutation.isPending
         }
         onScorePoint={(teamId) => scorePointMutation.mutate(teamId)}
-        onOpenLineupModal={() => setIsLineupModalOpen(true)}
+        onOpenLineupModal={() => {
+          setSetNumberToStart(activeMatch.currentSet?.setNumber ?? 1);
+          setIsLineupModalOpen(true);
+        }}
         onToggleSwapSides={() => setIsSidesSwapped((prev) => !prev)}
         onFinishSet={() => finishSetMutation.mutate()}
-        onEnableThirdSet={() => {
-          setSetNumberToStart(activeMatch.tournament?.maxSets ?? 3);
+        onStartNextSet={(nextSet) => {
+          setSetNumberToStart(nextSet);
           setIsLineupModalOpen(true);
         }}
         onFinishMatch={() => finishMatchMutation.mutate()}
@@ -396,121 +397,105 @@ export const RefereeScoringPage: React.FC = () => {
         }}
       />
 
-      {/* Modal de Registro de Sexteto Inicial (Posiciones 1 a 6) */}
+      {/* Modal Simple para Iniciar Set (solo elegir saque inicial; posiciones se ajustan en cancha) */}
       {isLineupModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="w-full max-w-3xl rounded-3xl border border-slate-800 bg-slate-900 p-6 space-y-5 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !startSetMutation.isPending) {
+              setIsLineupModalOpen(false);
+            }
+          }}
+        >
+          <div className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-900 p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-emerald-400" />
                 <h3 className="text-lg font-black text-white">
-                  Configurar Sexteto Inicial (Posiciones 1 a 6) • Set{' '}
-                  {setNumberToStart}
+                  Iniciar Set {setNumberToStart}
                 </h3>
               </div>
               <button
+                type="button"
+                disabled={startSetMutation.isPending}
                 onClick={() => setIsLineupModalOpen(false)}
-                className="text-xs text-slate-400 hover:text-white"
+                className="text-xs text-zinc-400 hover:text-white"
               >
                 Cerrar ✕
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
-                  Número de Set a Iniciar
+                <label className="block text-[11px] uppercase font-bold text-zinc-400 mb-1">
+                  Número de Set
                 </label>
                 <input
                   type="number"
                   min={1}
-                  max={5}
                   value={setNumberToStart}
-                  onChange={(e) => setSetNumberToStart(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white"
+                  onChange={(e) =>
+                    setSetNumberToStart(Math.max(1, Number(e.target.value) || 1))
+                  }
+                  className="w-full px-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-sm font-black text-yellow-400 focus:border-yellow-400 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
-                  Equipo con el Saque Inicial
+                <label className="block text-[11px] uppercase font-bold text-zinc-400 mb-2">
+                  ¿Quién saca de primero en este set?
                 </label>
-                <select
-                  value={servingTeamId}
-                  onChange={(e) => setServingTeamId(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white"
-                >
-                  <option value={activeMatch.homeTeam.id}>
-                    {activeMatch.homeTeam.name} (Local)
-                  </option>
-                  <option value={activeMatch.awayTeam.id}>
-                    {activeMatch.awayTeam.name} (Visitante)
-                  </option>
-                </select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setServingTeamId(activeMatch.homeTeam.id)}
+                    className={`p-3.5 rounded-2xl border text-left transition ${
+                      (servingTeamId || activeMatch.homeTeam.id) ===
+                      activeMatch.homeTeam.id
+                        ? 'border-yellow-400 bg-yellow-400/15 text-white shadow-lg shadow-yellow-400/10'
+                        : 'border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-zinc-700'
+                    }`}
+                  >
+                    <span className="block text-[10px] font-bold uppercase text-yellow-400">
+                      Local
+                    </span>
+                    <span className="block text-sm font-black truncate mt-0.5">
+                      {activeMatch.homeTeam.name}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setServingTeamId(activeMatch.awayTeam.id)}
+                    className={`p-3.5 rounded-2xl border text-left transition ${
+                      servingTeamId === activeMatch.awayTeam.id
+                        ? 'border-sky-400 bg-sky-400/15 text-white shadow-lg shadow-sky-400/10'
+                        : 'border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-zinc-700'
+                    }`}
+                  >
+                    <span className="block text-[10px] font-bold uppercase text-sky-400">
+                      Visitante
+                    </span>
+                    <span className="block text-sm font-black truncate mt-0.5">
+                      {activeMatch.awayTeam.name}
+                    </span>
+                  </button>
+                </div>
               </div>
+
+              <p className="text-[11px] text-zinc-400 bg-zinc-950 border border-zinc-800 rounded-2xl p-3 leading-relaxed">
+                Las posiciones P1–P6 se inicializan automáticamente. Una vez
+                iniciado el set, toca cualquier posición en la cancha para
+                colocar el dorsal de cada jugador.
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Posiciones Equipo Local */}
-              <div className="space-y-2.5 p-4 rounded-2xl bg-slate-950/60 border border-slate-800">
-                <h4 className="text-sm font-extrabold text-amber-400">
-                  {activeMatch.homeTeam.name} (Posiciones 1 a 6)
-                </h4>
-                {[0, 1, 2, 3, 4, 5].map((idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <span className="w-16 text-xs font-bold text-slate-400">
-                      Pos {idx + 1} {idx === 0 ? '(Saque)' : ''}:
-                    </span>
-                    <select
-                      value={homePositions[idx] ?? 0}
-                      onChange={(e) =>
-                        handlePositionChange('home', idx, Number(e.target.value))
-                      }
-                      className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-white"
-                    >
-                      {(activeMatch.homeTeam.players ?? []).map((p: Player) => (
-                        <option key={p.id} value={p.id}>
-                          #{p.jerseyNumber} - {p.firstName} {p.lastName}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
-              </div>
-
-              {/* Posiciones Equipo Visitante */}
-              <div className="space-y-2.5 p-4 rounded-2xl bg-slate-950/60 border border-slate-800">
-                <h4 className="text-sm font-extrabold text-sky-400">
-                  {activeMatch.awayTeam.name} (Posiciones 1 a 6)
-                </h4>
-                {[0, 1, 2, 3, 4, 5].map((idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <span className="w-16 text-xs font-bold text-slate-400">
-                      Pos {idx + 1} {idx === 0 ? '(Saque)' : ''}:
-                    </span>
-                    <select
-                      value={awayPositions[idx] ?? 0}
-                      onChange={(e) =>
-                        handlePositionChange('away', idx, Number(e.target.value))
-                      }
-                      className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-white"
-                    >
-                      {(activeMatch.awayTeam.players ?? []).map((p: Player) => (
-                        <option key={p.id} value={p.id}>
-                          #{p.jerseyNumber} - {p.firstName} {p.lastName}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-2.5 pt-2 border-t border-zinc-800">
               <button
                 type="button"
+                disabled={startSetMutation.isPending}
                 onClick={() => setIsLineupModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300"
+                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition"
               >
                 Cancelar
               </button>
@@ -518,11 +503,11 @@ export const RefereeScoringPage: React.FC = () => {
                 type="button"
                 disabled={startSetMutation.isPending}
                 onClick={() => startSetMutation.mutate()}
-                className="px-5 py-2.5 rounded-xl text-xs font-black bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-slate-950 transition"
               >
                 {startSetMutation.isPending
-                  ? 'Guardando Sextetos...'
-                  : `Confirmar Alineaciones e Iniciar Set ${setNumberToStart}`}
+                  ? 'Iniciando Set...'
+                  : `Confirmar e Iniciar Set ${setNumberToStart}`}
               </button>
             </div>
           </div>

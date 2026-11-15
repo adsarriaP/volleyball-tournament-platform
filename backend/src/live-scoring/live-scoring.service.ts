@@ -108,6 +108,26 @@ export class LiveScoringService {
         });
       }
 
+      const previousLineups =
+        dto.setNumber > 1
+          ? await tx.setLineup.findMany({
+              where: {
+                matchSet: {
+                  matchId: match.id,
+                  setNumber: { lt: dto.setNumber },
+                },
+              },
+              orderBy: { id: 'desc' },
+            })
+          : [];
+
+      const prevHome = previousLineups.find(
+        (l) => l.teamId === match.homeTeamId,
+      );
+      const prevAway = previousLineups.find(
+        (l) => l.teamId === match.awayTeamId,
+      );
+
       const homeIds =
         dto.homeJerseyNumbers && dto.homeJerseyNumbers.length === 6
           ? await this.resolvePlayerIdsByJerseys(
@@ -115,7 +135,22 @@ export class LiveScoringService {
               match.homeTeamId,
               dto.homeJerseyNumbers,
             )
-          : dto.homeLineupPlayerIds ?? [];
+          : dto.homeLineupPlayerIds && dto.homeLineupPlayerIds.length === 6
+            ? dto.homeLineupPlayerIds
+            : prevHome
+              ? [
+                  prevHome.pos1PlayerId,
+                  prevHome.pos2PlayerId,
+                  prevHome.pos3PlayerId,
+                  prevHome.pos4PlayerId,
+                  prevHome.pos5PlayerId,
+                  prevHome.pos6PlayerId,
+                ]
+              : await this.resolvePlayerIdsByJerseys(
+                  tx,
+                  match.homeTeamId,
+                  [1, 2, 3, 4, 5, 6],
+                );
 
       const awayIds =
         dto.awayJerseyNumbers && dto.awayJerseyNumbers.length === 6
@@ -124,7 +159,22 @@ export class LiveScoringService {
               match.awayTeamId,
               dto.awayJerseyNumbers,
             )
-          : dto.awayLineupPlayerIds ?? [];
+          : dto.awayLineupPlayerIds && dto.awayLineupPlayerIds.length === 6
+            ? dto.awayLineupPlayerIds
+            : prevAway
+              ? [
+                  prevAway.pos1PlayerId,
+                  prevAway.pos2PlayerId,
+                  prevAway.pos3PlayerId,
+                  prevAway.pos4PlayerId,
+                  prevAway.pos5PlayerId,
+                  prevAway.pos6PlayerId,
+                ]
+              : await this.resolvePlayerIdsByJerseys(
+                  tx,
+                  match.awayTeamId,
+                  [1, 2, 3, 4, 5, 6],
+                );
 
       if (homeIds.length !== 6 || awayIds.length !== 6) {
         throw new BadRequestException(

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeftRight,
@@ -8,6 +8,7 @@ import {
   Settings2,
   Zap,
 } from 'lucide-react';
+import { ConfirmDeleteModal } from '../../../shared/components/ConfirmDeleteModal';
 import { MatchLivePayload } from '../../../shared/types/volleyball.types';
 
 interface RefereeScoreboardControlProps {
@@ -18,7 +19,7 @@ interface RefereeScoreboardControlProps {
   onOpenLineupModal: () => void;
   onToggleSwapSides: () => void;
   onFinishSet: () => void;
-  onEnableThirdSet: () => void;
+  onStartNextSet: (nextSetNumber: number) => void;
   onFinishMatch: () => void;
 }
 
@@ -32,15 +33,20 @@ export const RefereeScoreboardControl: React.FC<
   onOpenLineupModal,
   onToggleSwapSides,
   onFinishSet,
-  onEnableThirdSet,
+  onStartNextSet,
   onFinishMatch,
 }) => {
+  const [confirmAction, setConfirmAction] = useState<
+    'finish-set' | 'finish-match' | null
+  >(null);
+
   const { homeTeam, awayTeam, currentSet, tournament, status } = match;
-  const maxSets = tournament?.maxSets ?? 3;
-  const isTieBreak = currentSet?.setNumber === maxSets;
-  const targetPoints = isTieBreak
-    ? (tournament?.pointsFinalSet ?? 15)
-    : (tournament?.pointsRegularSet ?? 25);
+  const maxExistingSet = Math.max(
+    currentSet?.setNumber ?? 0,
+    ...(match.setsHistory?.map((s) => s.setNumber) ?? [0]),
+  );
+  const nextSetNumber = maxExistingSet + 1;
+  const targetPoints = tournament?.pointsRegularSet ?? 25;
   const minDiff = tournament?.pointsDifference ?? 2;
 
   const homeScore = currentSet?.homeScore ?? 0;
@@ -95,8 +101,8 @@ export const RefereeScoreboardControl: React.FC<
           >
             <Settings2 className="w-4 h-4" />
             {hasLineupsConfigured
-              ? `Configurar / Iniciar Set`
-              : `Registrar Sexteto Inicial (Set ${currentSet?.setNumber ?? 1})`}
+              ? `Cambiar Saque / Set ${currentSet?.setNumber ?? 1}`
+              : `Iniciar Set ${currentSet?.setNumber ?? 1} (Elegir Saque)`}
           </button>
         </div>
       </div>
@@ -140,9 +146,11 @@ export const RefereeScoreboardControl: React.FC<
 
       {!hasLineupsConfigured && status !== 'FINISHED' && (
         <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs text-center font-medium">
-          Para habilitar los botones de puntuación (+1), primero confirma las 6
-          posiciones iniciales en cancha pulsando{' '}
-          <strong>"Registrar Sexteto Inicial"</strong>.
+          Para habilitar los botones de puntuación (+1), primero inicia el set
+          eligiendo quién saca en{' '}
+          <strong>"Iniciar Set {currentSet?.setNumber ?? 1}"</strong>. Luego
+          puedes tocar cada posición P1–P6 en la cancha para colocar el dorsal
+          de cada jugador.
         </div>
       )}
 
@@ -154,43 +162,27 @@ export const RefereeScoreboardControl: React.FC<
             disabled={
               isMutatingState || currentSet?.status !== 'IN_PROGRESS'
             }
-            onClick={() => {
-              if (
-                window.confirm(
-                  `¿Confirmas finalizar manualmente el Set ${currentSet?.setNumber ?? 1}?`,
-                )
-              ) {
-                onFinishSet();
-              }
-            }}
+            onClick={() => setConfirmAction('finish-set')}
             className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-xs font-black bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
             <CheckSquare className="w-4 h-4 shrink-0" />
-            Finalizar Set Actual
+            Finalizar Set {currentSet?.setNumber ?? 1}
           </button>
 
           <button
             type="button"
-            disabled={isMutatingState || (currentSet?.setNumber ?? 1) >= maxSets}
-            onClick={onEnableThirdSet}
+            disabled={isMutatingState || currentSet?.status === 'IN_PROGRESS'}
+            onClick={() => onStartNextSet(nextSetNumber)}
             className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-xs font-black bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/40 text-sky-300 disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
             <Zap className="w-4 h-4 shrink-0" />
-            Habilitar {maxSets}er Set (Desempate)
+            Iniciar Set {nextSetNumber}
           </button>
 
           <button
             type="button"
             disabled={isMutatingState}
-            onClick={() => {
-              if (
-                window.confirm(
-                  '¿Confirmas dar por terminado el partido oficialmente ahora?',
-                )
-              ) {
-                onFinishMatch();
-              }
-            }}
+            onClick={() => setConfirmAction('finish-match')}
             className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-xs font-black bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
             <Flag className="w-4 h-4 shrink-0" />
@@ -198,6 +190,42 @@ export const RefereeScoreboardControl: React.FC<
           </button>
         </div>
       )}
+
+      {/* Modal Estilizado para Finalizar Set o Partido (sin window.confirm) */}
+      <ConfirmDeleteModal
+        isOpen={confirmAction !== null}
+        title={
+          confirmAction === 'finish-set'
+            ? `Finalizar Set ${currentSet?.setNumber ?? 1}`
+            : 'Dar por Terminado el Partido'
+        }
+        description={
+          confirmAction === 'finish-set'
+            ? `¿Confirmas cerrar el Set ${currentSet?.setNumber ?? 1} con marcador ${homeScore} - ${awayScore}? Luego podrás iniciar el Set ${nextSetNumber} si es necesario.`
+            : '¿Confirmas dar por terminado el partido oficialmente ahora? Asegúrate de haber cerrado el set en curso primero.'
+        }
+        isLoading={isMutatingState}
+        variant={confirmAction === 'finish-set' ? 'warning' : 'danger'}
+        confirmLabel={
+          confirmAction === 'finish-set'
+            ? 'Aceptar, Finalizar Set'
+            : 'Aceptar, Terminar Partido'
+        }
+        loadingLabel={
+          confirmAction === 'finish-set' ? 'Cerrando set...' : 'Finalizando...'
+        }
+        onCancel={() => {
+          if (!isMutatingState) setConfirmAction(null);
+        }}
+        onConfirm={() => {
+          if (confirmAction === 'finish-set') {
+            onFinishSet();
+          } else if (confirmAction === 'finish-match') {
+            onFinishMatch();
+          }
+          setConfirmAction(null);
+        }}
+      />
     </div>
   );
 };

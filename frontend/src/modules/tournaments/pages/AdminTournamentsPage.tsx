@@ -114,7 +114,6 @@ export const AdminTournamentsPage: React.FC = () => {
     const maxTeams = Number(form.maxTeams);
     const groupsCount = Number(form.groupsCount);
     const qualifiersPerGroup = Number(form.qualifiersPerGroup);
-    const maxSets = Number(form.maxSets);
     const pointsRegularSet = Number(form.pointsRegularSet);
     const pointsFinalSet = Number(form.pointsFinalSet);
     const pointsDifference = Number(form.pointsDifference);
@@ -129,9 +128,6 @@ export const AdminTournamentsPage: React.FC = () => {
     }
     if (!Number.isInteger(qualifiersPerGroup) || qualifiersPerGroup < 1) {
       throw new Error('Los clasificados por grupo deben ser al menos 1.');
-    }
-    if (!Number.isInteger(maxSets) || maxSets < 1 || maxSets > 7) {
-      throw new Error('El máximo de sets debe estar entre 1 y 7.');
     }
     if (!Number.isInteger(pointsRegularSet) || pointsRegularSet < 5) {
       throw new Error('Los puntos por set regular deben ser al menos 5.');
@@ -166,7 +162,6 @@ export const AdminTournamentsPage: React.FC = () => {
       maxTeams,
       groupsCount,
       qualifiersPerGroup,
-      maxSets,
       pointsRegularSet,
       pointsFinalSet,
       pointsDifference,
@@ -520,27 +515,8 @@ export const AdminTournamentsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Reglas de Sets y Puntos */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">
-                    Máx. Sets
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    required
-                    value={form.maxSets}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        maxSets: sanitizeNumericInput(e.target.value),
-                      })
-                    }
-                    placeholder="3"
-                    className="w-full px-2 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white font-bold text-center"
-                  />
-                </div>
+              {/* Reglas de Puntos (el juez define la cantidad de sets en cancha) */}
+              <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">
                     Pts Set
@@ -821,7 +797,7 @@ export const AdminTournamentsPage: React.FC = () => {
                         <div className="px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800">
                           <span className="text-zinc-500 block">Reglas</span>
                           <span className="font-black text-white">
-                            {t.maxSets} sets ({t.pointsRegularSet}/
+                            Sets libres ({t.pointsRegularSet}/
                             {t.pointsFinalSet})
                           </span>
                         </div>

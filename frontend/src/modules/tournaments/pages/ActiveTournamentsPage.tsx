@@ -221,7 +221,7 @@ export const ActiveTournamentsPage: React.FC = () => {
                     <Users className="w-3.5 h-3.5 text-yellow-400" />
                     {t.teams.length}/{t.maxTeams ?? 20} Equipos ({t.groupsCount ?? 2} grupos)
                   </span>
-                  <span>• Mejor de {t.maxSets} sets</span>
+                  <span>• Sets libres (Juez)</span>
                   {t.startDate && (
                     <span className="inline-flex items-center gap-1 text-zinc-300">
                       <Calendar className="w-3.5 h-3.5 text-yellow-400" />
