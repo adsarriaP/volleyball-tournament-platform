@@ -5,6 +5,8 @@ export type TournamentFormatType =
   | 'KNOCKOUT_ONLY'
   | 'GROUPS_THEN_KNOCKOUT';
 
+export type TournamentCategory = 'STANDARD' | 'MINI' | 'BENJAMIN';
+
 export type TournamentStatus = 'ACTIVE' | 'FINISHED';
 
 export interface AuthUser {
@@ -35,9 +37,9 @@ export interface LineupPositions {
   pos1: Player;
   pos2: Player;
   pos3: Player;
-  pos4: Player;
-  pos5: Player;
-  pos6: Player;
+  pos4?: Player | null;
+  pos5?: Player | null;
+  pos6?: Player | null;
 }
 
 export interface MatchSetState {
@@ -55,6 +57,7 @@ export interface MatchSetState {
 export interface TournamentRules {
   id: number;
   name: string;
+  category?: TournamentCategory;
   status?: TournamentStatus;
   formatType: TournamentFormatType;
   maxTeams: number;

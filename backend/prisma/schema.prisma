@@ -23,6 +23,12 @@ enum TournamentFormatType {
   GROUPS_THEN_KNOCKOUT
 }
 
+enum TournamentCategory {
+  STANDARD
+  MINI
+  BENJAMIN
+}
+
 enum PhaseType {
   ROUND_ROBIN
   SINGLE_ELIMINATION
@@ -67,6 +73,7 @@ model Tournament {
   id                 Int                  @id @default(autoincrement()) @db.UnsignedInt
   name               String               @db.VarChar(200)
   formatType         TournamentFormatType @map("format_type")
+  category           TournamentCategory   @default(STANDARD)
   status             TournamentStatus     @default(ACTIVE)
   maxTeams           Int                  @default(20) @map("max_teams") @db.UnsignedSmallInt
   groupsCount        Int                  @default(2) @map("groups_count") @db.UnsignedTinyInt
@@ -210,24 +217,24 @@ model MatchSet {
 }
 
 model SetLineup {
-  id           Int @id @default(autoincrement()) @db.UnsignedInt
-  setId        Int @map("set_id") @db.UnsignedInt
-  teamId       Int @map("team_id") @db.UnsignedInt
-  pos1PlayerId Int @map("pos_1_player_id") @db.UnsignedInt
-  pos2PlayerId Int @map("pos_2_player_id") @db.UnsignedInt
-  pos3PlayerId Int @map("pos_3_player_id") @db.UnsignedInt
-  pos4PlayerId Int @map("pos_4_player_id") @db.UnsignedInt
-  pos5PlayerId Int @map("pos_5_player_id") @db.UnsignedInt
-  pos6PlayerId Int @map("pos_6_player_id") @db.UnsignedInt
+  id           Int  @id @default(autoincrement()) @db.UnsignedInt
+  setId        Int  @map("set_id") @db.UnsignedInt
+  teamId       Int  @map("team_id") @db.UnsignedInt
+  pos1PlayerId Int  @map("pos_1_player_id") @db.UnsignedInt
+  pos2PlayerId Int  @map("pos_2_player_id") @db.UnsignedInt
+  pos3PlayerId Int  @map("pos_3_player_id") @db.UnsignedInt
+  pos4PlayerId Int? @map("pos_4_player_id") @db.UnsignedInt
+  pos5PlayerId Int? @map("pos_5_player_id") @db.UnsignedInt
+  pos6PlayerId Int? @map("pos_6_player_id") @db.UnsignedInt
 
   matchSet   MatchSet @relation(fields: [setId], references: [id], onDelete: Cascade)
   team       Team     @relation(fields: [teamId], references: [id])
   pos1Player Player   @relation("LineupPos1", fields: [pos1PlayerId], references: [id])
   pos2Player Player   @relation("LineupPos2", fields: [pos2PlayerId], references: [id])
   pos3Player Player   @relation("LineupPos3", fields: [pos3PlayerId], references: [id])
-  pos4Player Player   @relation("LineupPos4", fields: [pos4PlayerId], references: [id])
-  pos5Player Player   @relation("LineupPos5", fields: [pos5PlayerId], references: [id])
-  pos6Player Player   @relation("LineupPos6", fields: [pos6PlayerId], references: [id])
+  pos4Player Player?  @relation("LineupPos4", fields: [pos4PlayerId], references: [id])
+  pos5Player Player?  @relation("LineupPos5", fields: [pos5PlayerId], references: [id])
+  pos6Player Player?  @relation("LineupPos6", fields: [pos6PlayerId], references: [id])
 
   @@unique([setId, teamId])
   @@map("set_lineups")

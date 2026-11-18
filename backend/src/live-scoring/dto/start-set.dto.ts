@@ -26,30 +26,30 @@ export class StartSetDto {
 
   @IsOptional()
   @IsArray()
-  @ArrayMinSize(6)
+  @ArrayMinSize(3)
   @ArrayMaxSize(6)
   @Type(() => Number)
-  homeLineupPlayerIds?: number[]; // [pos1, pos2, pos3, pos4, pos5, pos6]
+  homeLineupPlayerIds?: number[]; // [pos1, pos2, pos3, (pos4, pos5, pos6)]
 
   @IsOptional()
   @IsArray()
-  @ArrayMinSize(6)
+  @ArrayMinSize(3)
   @ArrayMaxSize(6)
   @Type(() => Number)
-  awayLineupPlayerIds?: number[]; // [pos1, pos2, pos3, pos4, pos5, pos6]
+  awayLineupPlayerIds?: number[]; // [pos1, pos2, pos3, (pos4, pos5, pos6)]
 
   @IsOptional()
   @IsArray()
-  @ArrayMinSize(6)
+  @ArrayMinSize(3)
   @ArrayMaxSize(6)
   @Type(() => Number)
-  homeJerseyNumbers?: number[]; // Dorsales directos [pos1..pos6]
+  homeJerseyNumbers?: number[]; // Dorsales directos [pos1..pos3/4/6]
 
   @IsOptional()
   @IsArray()
-  @ArrayMinSize(6)
+  @ArrayMinSize(3)
   @ArrayMaxSize(6)
   @Type(() => Number)
-  awayJerseyNumbers?: number[]; // Dorsales directos [pos1..pos6]
+  awayJerseyNumbers?: number[]; // Dorsales directos [pos1..pos3/4/6]
 }
 

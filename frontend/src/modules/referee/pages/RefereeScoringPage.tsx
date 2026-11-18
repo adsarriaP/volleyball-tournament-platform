@@ -144,8 +144,44 @@ export const RefereeScoringPage: React.FC = () => {
     },
   });
 
+  const adjustScoreMutation = useMutation({
+    mutationFn: async ({
+      homeScore,
+      awayScore,
+      servingTeamId,
+    }: {
+      homeScore: number;
+      awayScore: number;
+      servingTeamId?: number;
+    }) => {
+      setErrorBanner(null);
+      if (!activeMatch?.currentSet?.id) {
+        throw new Error('No hay un set activo para ajustar.');
+      }
+      return apiFetch<MatchLivePayload>('/live-scoring/adjust-score', {
+        method: 'POST',
+        body: JSON.stringify({
+          matchId: numericMatchId,
+          setId: activeMatch.currentSet.id,
+          homeScore,
+          awayScore,
+          servingTeamId,
+        }),
+      });
+    },
+    onSuccess: (updated) => {
+      if (updated) setInitialData(updated);
+      useToastStore.getState().success('Marcador corregido correctamente.');
+      void refetch();
+    },
+    onError: (err: Error) => {
+      setErrorBanner(err.message);
+      useToastStore.getState().error(err.message);
+    },
+  });
+
   const finishSetMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (winnerTeamId?: number | null) => {
       setErrorBanner(null);
       if (!activeMatch?.currentSet?.id) {
         throw new Error('No hay un set activo para finalizar.');
@@ -155,6 +191,7 @@ export const RefereeScoringPage: React.FC = () => {
         body: JSON.stringify({
           matchId: numericMatchId,
           setId: activeMatch.currentSet.id,
+          winnerTeamId,
         }),
       });
     },
@@ -170,12 +207,13 @@ export const RefereeScoringPage: React.FC = () => {
   });
 
   const finishMatchMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (winnerTeamId?: number | null) => {
       setErrorBanner(null);
       return apiFetch<MatchLivePayload>('/live-scoring/finish-match', {
         method: 'POST',
         body: JSON.stringify({
           matchId: numericMatchId,
+          winnerTeamId,
         }),
       });
     },
@@ -334,10 +372,16 @@ export const RefereeScoringPage: React.FC = () => {
         <div className="p-6 rounded-2xl border border-amber-500/50 bg-amber-500/10 text-center space-y-2">
           <Trophy className="w-10 h-10 text-amber-400 mx-auto" />
           <h2 className="text-xl font-black text-white">
-            ¡Partido Finalizado! Ganador:{' '}
-            {activeMatch.winnerTeamId === activeMatch.homeTeam.id
-              ? activeMatch.homeTeam.name
-              : activeMatch.awayTeam.name}
+            {activeMatch.winnerTeamId ? (
+              <>
+                ¡Partido Finalizado! Ganador:{' '}
+                {activeMatch.winnerTeamId === activeMatch.homeTeam.id
+                  ? activeMatch.homeTeam.name
+                  : activeMatch.awayTeam.name}
+              </>
+            ) : (
+              '¡Partido Finalizado en Empate Oficial!'
+            )}
           </h2>
           <p className="text-xs text-slate-300">
             Resultado global en sets: {activeMatch.homeSetsWon} -{' '}
@@ -349,29 +393,37 @@ export const RefereeScoringPage: React.FC = () => {
       {/* Marcador Global y Set en Vivo */}
       <LiveScoreBanner match={activeMatch} isConnected={isConnected} />
 
-      {/* Controles Táctiles de Puntuación (+1 Local / +1 Visitante) */}
+      {/* Controles Táctiles de Puntuación (+1 Local / +1 Visitante y Corrección) */}
       <RefereeScoreboardControl
         match={activeMatch}
         isScoring={scorePointMutation.isPending}
         isMutatingState={
-          finishSetMutation.isPending || finishMatchMutation.isPending
+          finishSetMutation.isPending ||
+          finishMatchMutation.isPending ||
+          adjustScoreMutation.isPending
         }
         onScorePoint={(teamId) => scorePointMutation.mutate(teamId)}
+        onAdjustScore={(homeScore, awayScore, servingTeamId) =>
+          adjustScoreMutation.mutate({ homeScore, awayScore, servingTeamId })
+        }
         onOpenLineupModal={() => {
           setSetNumberToStart(activeMatch.currentSet?.setNumber ?? 1);
           setIsLineupModalOpen(true);
         }}
         onToggleSwapSides={() => setIsSidesSwapped((prev) => !prev)}
-        onFinishSet={() => finishSetMutation.mutate()}
+        onFinishSet={(winnerTeamId) => finishSetMutation.mutate(winnerTeamId)}
         onStartNextSet={(nextSet) => {
           setSetNumberToStart(nextSet);
           setIsLineupModalOpen(true);
         }}
-        onFinishMatch={() => finishMatchMutation.mutate()}
+        onFinishMatch={(winnerTeamId) =>
+          finishMatchMutation.mutate(winnerTeamId)
+        }
       />
 
-      {/* Cancha Interactiva 2D con Rotación Horaria (1 -> 6 -> 5 -> 4 -> 3 -> 2 -> 1) */}
+      {/* Cancha Interactiva 2D con Rotación Horaria según Categoría */}
       <VolleyballCourt
+        category={activeMatch.tournament?.category}
         homeTeam={activeMatch.homeTeam}
         awayTeam={activeMatch.awayTeam}
         homeLineup={activeMatch.currentSet?.homeLineup}
@@ -391,7 +443,7 @@ export const RefereeScoringPage: React.FC = () => {
             teamId,
             teamName,
             posNumber,
-            currentPlayer,
+            currentPlayer: currentPlayer ?? undefined,
           });
         }}
       />
@@ -483,9 +535,13 @@ export const RefereeScoringPage: React.FC = () => {
               </div>
 
               <p className="text-[11px] text-zinc-400 bg-zinc-950 border border-zinc-800 rounded-2xl p-3 leading-relaxed">
-                Las posiciones P1–P6 se inicializan automáticamente. Una vez
-                iniciado el set, toca cualquier posición en la cancha para
-                colocar el dorsal de cada jugador.
+                {activeMatch.tournament?.category === 'BENJAMIN'
+                  ? 'Las posiciones P1–P3 (3 jugadores en cancha) se inicializan automáticamente.'
+                  : activeMatch.tournament?.category === 'MINI'
+                    ? 'Las posiciones P1–P4 (4 jugadores en cancha) se inicializan automáticamente.'
+                    : 'Las posiciones P1–P6 (6 jugadores en cancha) se inicializan automáticamente.'}{' '}
+                Una vez iniciado el set, toca cualquier posición en la cancha para
+                colocar el dorsal de cada jugador o hacer sustituciones.
               </p>
             </div>
 

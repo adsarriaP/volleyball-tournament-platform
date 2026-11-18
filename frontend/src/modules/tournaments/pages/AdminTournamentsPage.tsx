@@ -22,6 +22,7 @@ import { useToastStore } from '../../../shared/store/useToastStore';
 import {
   MatchSummary,
   Team,
+  TournamentCategory,
   TournamentFormatType,
   TournamentRules,
 } from '../../../shared/types/volleyball.types';
@@ -34,6 +35,7 @@ interface TournamentWithMatches extends TournamentRules {
 
 interface TournamentFormState {
   name: string;
+  category: TournamentCategory;
   formatType: TournamentFormatType;
   maxTeams: string;
   groupsCount: string;
@@ -55,6 +57,7 @@ const DEFAULT_END_DATE = new Date(
 
 const INITIAL_FORM_STATE: TournamentFormState = {
   name: '',
+  category: 'STANDARD',
   formatType: 'GROUPS_THEN_KNOCKOUT',
   maxTeams: '20',
   groupsCount: '2',
@@ -159,6 +162,7 @@ export const AdminTournamentsPage: React.FC = () => {
 
     return {
       name: trimmedName,
+      category: form.category,
       formatType: form.formatType,
       maxTeams,
       groupsCount,
@@ -281,6 +285,7 @@ export const AdminTournamentsPage: React.FC = () => {
     setEditingTournamentId(t.id);
     setForm({
       name: t.name,
+      category: t.category ?? 'STANDARD',
       formatType: t.formatType,
       maxTeams: String(t.maxTeams ?? 20),
       groupsCount: String(t.groupsCount ?? 2),
@@ -426,6 +431,56 @@ export const AdminTournamentsPage: React.FC = () => {
                   placeholder="Ej. Copa Nacional Voleibol 2026"
                   className="w-full px-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white focus:border-yellow-400 outline-none"
                 />
+              </div>
+
+              {/* Selector de Categoría (Estándar 6v6, Mini 4v4, Benjamín 3v3) */}
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1.5">
+                  Categoría del Torneo (Jugadores en Cancha)
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, category: 'STANDARD' })}
+                    className={`p-2.5 rounded-xl border text-left transition flex flex-col items-center sm:items-start text-center sm:text-left ${
+                      form.category === 'STANDARD'
+                        ? 'border-yellow-400 bg-yellow-400/15 text-white shadow-md'
+                        : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700'
+                    }`}
+                  >
+                    <span className="text-base sm:text-lg mb-0.5">🏆</span>
+                    <span className="text-xs font-black">Estándar</span>
+                    <span className="text-[10px] text-zinc-400">6 vs 6</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, category: 'MINI' })}
+                    className={`p-2.5 rounded-xl border text-left transition flex flex-col items-center sm:items-start text-center sm:text-left ${
+                      form.category === 'MINI'
+                        ? 'border-sky-400 bg-sky-400/15 text-white shadow-md'
+                        : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700'
+                    }`}
+                  >
+                    <span className="text-base sm:text-lg mb-0.5">🏐</span>
+                    <span className="text-xs font-black">Mini Voley</span>
+                    <span className="text-[10px] text-zinc-400">4 vs 4</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, category: 'BENJAMIN' })}
+                    className={`p-2.5 rounded-xl border text-left transition flex flex-col items-center sm:items-start text-center sm:text-left ${
+                      form.category === 'BENJAMIN'
+                        ? 'border-emerald-400 bg-emerald-400/15 text-white shadow-md'
+                        : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700'
+                    }`}
+                  >
+                    <span className="text-base sm:text-lg mb-0.5">🧒</span>
+                    <span className="text-xs font-black">Benjamín</span>
+                    <span className="text-[10px] text-zinc-400">3 vs 3</span>
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -716,6 +771,21 @@ export const AdminTournamentsPage: React.FC = () => {
                             </h3>
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-zinc-950 border border-zinc-800 text-yellow-400">
                               {t.formatType}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                                t.category === 'BENJAMIN'
+                                  ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                                  : t.category === 'MINI'
+                                    ? 'bg-sky-500/15 border-sky-500/30 text-sky-300'
+                                    : 'bg-yellow-400/15 border-yellow-400/30 text-yellow-300'
+                              }`}
+                            >
+                              {t.category === 'BENJAMIN'
+                                ? '🧒 Benjamín (3v3)'
+                                : t.category === 'MINI'
+                                  ? '🏐 Mini (4v4)'
+                                  : '🏆 Estándar (6v6)'}
                             </span>
                             {t.status === 'FINISHED' && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 uppercase">

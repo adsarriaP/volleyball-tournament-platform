@@ -144,6 +144,11 @@ export class MatchesController {
     );
   }
 
+  @Get('friendlies')
+  async getFriendlyMatches() {
+    return this.matchesService.findFriendlyMatches();
+  }
+
   @Get('team/:teamId')
   async getTeamMatches(
     @Param('teamId', ParseIntPipe) teamId: number,

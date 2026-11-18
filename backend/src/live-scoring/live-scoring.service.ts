@@ -62,6 +62,7 @@ export class LiveScoringService {
     await this.prisma.$transaction(async (tx) => {
       const match = await tx.match.findUnique({
         where: { id: dto.matchId },
+        include: { tournament: true },
       });
 
       if (!match) {
@@ -77,6 +78,9 @@ export class LiveScoringService {
           'Solo el juez asignado al partido o el administrador puede iniciar un set.',
         );
       }
+
+      const category = match.tournament?.category ?? 'STANDARD';
+      const expectedPlayers = category === 'BENJAMIN' ? 3 : category === 'MINI' ? 4 : 6;
 
       let matchSet = await tx.matchSet.findUnique({
         where: {
@@ -128,14 +132,16 @@ export class LiveScoringService {
         (l) => l.teamId === match.awayTeamId,
       );
 
+      const defaultJerseys = Array.from({ length: expectedPlayers }, (_, i) => i + 1);
+
       const homeIds =
-        dto.homeJerseyNumbers && dto.homeJerseyNumbers.length === 6
+        dto.homeJerseyNumbers && dto.homeJerseyNumbers.length === expectedPlayers
           ? await this.resolvePlayerIdsByJerseys(
               tx,
               match.homeTeamId,
               dto.homeJerseyNumbers,
             )
-          : dto.homeLineupPlayerIds && dto.homeLineupPlayerIds.length === 6
+          : dto.homeLineupPlayerIds && dto.homeLineupPlayerIds.length === expectedPlayers
             ? dto.homeLineupPlayerIds
             : prevHome
               ? [
@@ -145,21 +151,21 @@ export class LiveScoringService {
                   prevHome.pos4PlayerId,
                   prevHome.pos5PlayerId,
                   prevHome.pos6PlayerId,
-                ]
+                ].filter((id): id is number => id !== null && id !== undefined).slice(0, expectedPlayers)
               : await this.resolvePlayerIdsByJerseys(
                   tx,
                   match.homeTeamId,
-                  [1, 2, 3, 4, 5, 6],
+                  defaultJerseys,
                 );
 
       const awayIds =
-        dto.awayJerseyNumbers && dto.awayJerseyNumbers.length === 6
+        dto.awayJerseyNumbers && dto.awayJerseyNumbers.length === expectedPlayers
           ? await this.resolvePlayerIdsByJerseys(
               tx,
               match.awayTeamId,
               dto.awayJerseyNumbers,
             )
-          : dto.awayLineupPlayerIds && dto.awayLineupPlayerIds.length === 6
+          : dto.awayLineupPlayerIds && dto.awayLineupPlayerIds.length === expectedPlayers
             ? dto.awayLineupPlayerIds
             : prevAway
               ? [
@@ -169,21 +175,21 @@ export class LiveScoringService {
                   prevAway.pos4PlayerId,
                   prevAway.pos5PlayerId,
                   prevAway.pos6PlayerId,
-                ]
+                ].filter((id): id is number => id !== null && id !== undefined).slice(0, expectedPlayers)
               : await this.resolvePlayerIdsByJerseys(
                   tx,
                   match.awayTeamId,
-                  [1, 2, 3, 4, 5, 6],
+                  defaultJerseys,
                 );
 
-      if (homeIds.length !== 6 || awayIds.length !== 6) {
+      if (homeIds.length < expectedPlayers || awayIds.length < expectedPlayers) {
         throw new BadRequestException(
-          'Debes indicar las 6 posiciones (dorsales) para ambos equipos.',
+          `Debes indicar las ${expectedPlayers} posiciones (dorsales) para ambos equipos (categoría ${category}).`,
         );
       }
 
-      const [h1, h2, h3, h4, h5, h6] = homeIds;
-      const [a1, a2, a3, a4, a5, a6] = awayIds;
+      const [h1, h2, h3, h4 = null, h5 = null, h6 = null] = homeIds;
+      const [a1, a2, a3, a4 = null, a5 = null, a6 = null] = awayIds;
 
       if (match.status === MatchStatus.SCHEDULED) {
         await tx.match.update({
@@ -203,9 +209,9 @@ export class LiveScoringService {
           pos1PlayerId: h1,
           pos2PlayerId: h2,
           pos3PlayerId: h3,
-          pos4PlayerId: h4,
-          pos5PlayerId: h5,
-          pos6PlayerId: h6,
+          pos4PlayerId: expectedPlayers >= 4 ? h4 : null,
+          pos5PlayerId: expectedPlayers >= 5 ? h5 : null,
+          pos6PlayerId: expectedPlayers >= 6 ? h6 : null,
         },
         create: {
           setId: matchSet.id,
@@ -213,9 +219,9 @@ export class LiveScoringService {
           pos1PlayerId: h1,
           pos2PlayerId: h2,
           pos3PlayerId: h3,
-          pos4PlayerId: h4,
-          pos5PlayerId: h5,
-          pos6PlayerId: h6,
+          pos4PlayerId: expectedPlayers >= 4 ? h4 : null,
+          pos5PlayerId: expectedPlayers >= 5 ? h5 : null,
+          pos6PlayerId: expectedPlayers >= 6 ? h6 : null,
         },
       });
 
@@ -230,9 +236,9 @@ export class LiveScoringService {
           pos1PlayerId: a1,
           pos2PlayerId: a2,
           pos3PlayerId: a3,
-          pos4PlayerId: a4,
-          pos5PlayerId: a5,
-          pos6PlayerId: a6,
+          pos4PlayerId: expectedPlayers >= 4 ? a4 : null,
+          pos5PlayerId: expectedPlayers >= 5 ? a5 : null,
+          pos6PlayerId: expectedPlayers >= 6 ? a6 : null,
         },
         create: {
           setId: matchSet.id,
@@ -240,9 +246,9 @@ export class LiveScoringService {
           pos1PlayerId: a1,
           pos2PlayerId: a2,
           pos3PlayerId: a3,
-          pos4PlayerId: a4,
-          pos5PlayerId: a5,
-          pos6PlayerId: a6,
+          pos4PlayerId: expectedPlayers >= 4 ? a4 : null,
+          pos5PlayerId: expectedPlayers >= 5 ? a5 : null,
+          pos6PlayerId: expectedPlayers >= 6 ? a6 : null,
         },
       });
     }, { maxWait: 10000, timeout: 15000 });
@@ -333,7 +339,7 @@ export class LiveScoringService {
 
       if (!homeLineupRecord || !awayLineupRecord) {
         throw new BadRequestException(
-          'Ambos equipos deben tener su formación inicial (posiciones 1 a 6) registrada en SetLineup antes de anotar puntos.',
+          'Ambos equipos deben tener su formación inicial registrada en SetLineup antes de anotar puntos.',
         );
       }
 
@@ -355,6 +361,9 @@ export class LiveScoringService {
         pos6PlayerId: awayLineupRecord.pos6PlayerId,
       };
 
+      const category = match.tournament?.category ?? 'STANDARD';
+      const playersOnCourt = category === 'BENJAMIN' ? 3 : category === 'MINI' ? 4 : 6;
+
       const rallyOutcome = this.volleyballEngine.resolveRally({
         homeTeamId: match.homeTeamId,
         awayTeamId: match.awayTeamId,
@@ -364,6 +373,7 @@ export class LiveScoringService {
         scoringTeamId: dto.scoringTeamId,
         homeLineup,
         awayLineup,
+        playersOnCourt,
       });
 
       if (rallyOutcome.didServeChange) {
@@ -598,10 +608,74 @@ export class LiveScoringService {
   /**
    * Permite al juez o administrador dar por finalizado el set actual.
    */
+  /**
+   * Permite al juez o administrador corregir directamente el marcador (restar puntos o fijar puntaje)
+   * en caso de un error arbitral durante el rally.
+   */
+  public async adjustScore(
+    input: {
+      matchId: number;
+      setId: number;
+      homeScore: number;
+      awayScore: number;
+      servingTeamId?: number | null;
+    },
+    currentUser: AuthenticatedUser,
+  ) {
+    const match = await this.prisma.match.findUnique({
+      where: { id: input.matchId },
+      include: {
+        sets: true,
+      },
+    });
+    if (!match) throw new NotFoundException('El partido no existe.');
+    this.assertCanManageMatch(match, currentUser);
+
+    const targetSet = match.sets.find((s) => s.id === input.setId);
+    if (!targetSet) {
+      throw new NotFoundException(
+        `El set #${input.setId} no existe en este partido.`,
+      );
+    }
+
+    const newHomeScore = Math.max(0, Number(input.homeScore) || 0);
+    const newAwayScore = Math.max(0, Number(input.awayScore) || 0);
+
+    await this.prisma.matchSet.update({
+      where: { id: targetSet.id },
+      data: {
+        homeScore: newHomeScore,
+        awayScore: newAwayScore,
+        servingTeamId:
+          input.servingTeamId !== undefined
+            ? input.servingTeamId
+            : targetSet.servingTeamId,
+      },
+    });
+
+    const liveState = await this.matchesService.getMatchLivePayload(
+      input.matchId,
+    );
+    this.liveScoringGateway.server
+      .to(this.liveScoringGateway.getRoomName(input.matchId))
+      .emit('matchScoreUpdated', {
+        ...liveState,
+        didServeChange: false,
+        rotatedTeamId: null,
+      });
+
+    return liveState;
+  }
+
+  /**
+   * Permite al juez o admin cerrar manualmente un set.
+   * Sin bloqueo por empate: el juez puede decidir el ganador o registrar empate.
+   */
   public async finishSetManually(
     matchId: number,
     setId: number,
     currentUser: AuthenticatedUser,
+    explicitWinnerTeamId?: number | null,
   ) {
     const currentSet = await this.prisma.matchSet.findUnique({
       where: { id: setId },
@@ -615,16 +689,17 @@ export class LiveScoringService {
     if (currentSet.status === SetStatus.COMPLETED) {
       throw new BadRequestException('Este set ya fue finalizado.');
     }
-    if (currentSet.homeScore === currentSet.awayScore) {
-      throw new BadRequestException(
-        'No se puede cerrar un set empatado. Debe haber un ganador.',
-      );
-    }
 
-    const winnerTeamId =
-      currentSet.homeScore > currentSet.awayScore
-        ? currentSet.match.homeTeamId
-        : currentSet.match.awayTeamId;
+    let winnerTeamId: number | null = null;
+    if (explicitWinnerTeamId !== undefined) {
+      winnerTeamId = explicitWinnerTeamId;
+    } else if (currentSet.homeScore > currentSet.awayScore) {
+      winnerTeamId = currentSet.match.homeTeamId;
+    } else if (currentSet.awayScore > currentSet.homeScore) {
+      winnerTeamId = currentSet.match.awayTeamId;
+    } else {
+      winnerTeamId = null;
+    }
 
     await this.prisma.matchSet.update({
       where: { id: setId },
@@ -635,11 +710,13 @@ export class LiveScoringService {
     });
 
     const isHomeWinner = winnerTeamId === currentSet.match.homeTeamId;
+    const isAwayWinner = winnerTeamId === currentSet.match.awayTeamId;
+
     await this.prisma.match.update({
       where: { id: matchId },
       data: {
         homeSetsWon: currentSet.match.homeSetsWon + (isHomeWinner ? 1 : 0),
-        awaySetsWon: currentSet.match.awaySetsWon + (isHomeWinner ? 0 : 1),
+        awaySetsWon: currentSet.match.awaySetsWon + (isAwayWinner ? 1 : 0),
         status: MatchStatus.IN_PROGRESS,
       },
     });
@@ -658,10 +735,13 @@ export class LiveScoringService {
 
   /**
    * Permite al juez o admin dar por terminado el partido completo.
+   * Sin bloqueo por empate: se permite empate oficial (winnerTeamId: null)
+   * o asignar ganador por decisión arbitral.
    */
   public async finishMatchManually(
     matchId: number,
     currentUser: AuthenticatedUser,
+    explicitWinnerTeamId?: number | null,
   ) {
     const match = await this.prisma.match.findUnique({
       where: { id: matchId },
@@ -670,25 +750,50 @@ export class LiveScoringService {
     if (!match) throw new NotFoundException('El partido no existe.');
     this.assertCanManageMatch(match, currentUser);
 
-    if (match.sets.some((s) => s.status === SetStatus.IN_PROGRESS)) {
-      throw new BadRequestException(
-        'Hay un set en curso. Finaliza el set antes de terminar el partido.',
-      );
-    }
-    if (match.homeSetsWon === match.awaySetsWon) {
-      throw new BadRequestException(
-        `El partido está empatado ${match.homeSetsWon}-${match.awaySetsWon} en sets. Juega el set de desempate antes de finalizar.`,
-      );
+    // Si había un set IN_PROGRESS, se finaliza limpiamente
+    const inProgressSet = match.sets.find(
+      (s) => s.status === SetStatus.IN_PROGRESS,
+    );
+    let homeSetsWon = match.homeSetsWon;
+    let awaySetsWon = match.awaySetsWon;
+
+    if (inProgressSet) {
+      let setWinnerTeamId: number | null = null;
+      if (inProgressSet.homeScore > inProgressSet.awayScore) {
+        setWinnerTeamId = match.homeTeamId;
+        homeSetsWon += 1;
+      } else if (inProgressSet.awayScore > inProgressSet.homeScore) {
+        setWinnerTeamId = match.awayTeamId;
+        awaySetsWon += 1;
+      }
+      await this.prisma.matchSet.update({
+        where: { id: inProgressSet.id },
+        data: {
+          status: SetStatus.COMPLETED,
+          winnerTeamId: setWinnerTeamId,
+        },
+      });
     }
 
-    const winnerTeamId =
-      match.homeSetsWon > match.awaySetsWon ? match.homeTeamId : match.awayTeamId;
+    let finalWinnerTeamId: number | null = null;
+    if (explicitWinnerTeamId !== undefined) {
+      finalWinnerTeamId = explicitWinnerTeamId;
+    } else if (homeSetsWon > awaySetsWon) {
+      finalWinnerTeamId = match.homeTeamId;
+    } else if (awaySetsWon > homeSetsWon) {
+      finalWinnerTeamId = match.awayTeamId;
+    } else {
+      // Empate oficial
+      finalWinnerTeamId = null;
+    }
 
     await this.prisma.match.update({
       where: { id: matchId },
       data: {
         status: MatchStatus.FINISHED,
-        winnerTeamId,
+        homeSetsWon,
+        awaySetsWon,
+        winnerTeamId: finalWinnerTeamId,
       },
     });
 

@@ -59,8 +59,9 @@ export const LiveMatchPublicPage: React.FC = () => {
       {/* Marcador en Vivo Reactivo vía WebSocket */}
       <LiveScoreBanner match={activeMatch} isConnected={isConnected} />
 
-      {/* Cancha 2D con Rotación y Jugador en Servicio en Tiempo Real */}
+      {/* Cancha 2D con Rotación y Jugador en Servicio en Tiempo Real según Categoría */}
       <VolleyballCourt
+        category={activeMatch.tournament?.category}
         homeTeam={activeMatch.homeTeam}
         awayTeam={activeMatch.awayTeam}
         homeLineup={activeMatch.currentSet?.homeLineup}

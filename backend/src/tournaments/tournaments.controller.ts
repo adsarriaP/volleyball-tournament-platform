@@ -10,7 +10,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { Role, TournamentFormatType } from '@prisma/client';
+import { Role, TournamentCategory, TournamentFormatType } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   IsArray,
@@ -34,6 +34,10 @@ export class CreateTournamentDto {
 
   @IsEnum(TournamentFormatType)
   formatType!: TournamentFormatType;
+
+  @IsOptional()
+  @IsEnum(TournamentCategory)
+  category?: TournamentCategory;
 
   @IsOptional()
   @Type(() => Number)
@@ -110,6 +114,10 @@ export class UpdateTournamentDto {
   @IsOptional()
   @IsEnum(TournamentFormatType)
   formatType?: TournamentFormatType;
+
+  @IsOptional()
+  @IsEnum(TournamentCategory)
+  category?: TournamentCategory;
 
   @IsOptional()
   @Type(() => Number)

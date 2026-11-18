@@ -4,9 +4,9 @@ export interface CourtLineupPositions {
   readonly pos1PlayerId: number;
   readonly pos2PlayerId: number;
   readonly pos3PlayerId: number;
-  readonly pos4PlayerId: number;
-  readonly pos5PlayerId: number;
-  readonly pos6PlayerId: number;
+  readonly pos4PlayerId?: number | null;
+  readonly pos5PlayerId?: number | null;
+  readonly pos6PlayerId?: number | null;
 }
 
 export interface TournamentRulesConfig {
@@ -35,6 +35,7 @@ export interface RallyResolutionInput {
   readonly scoringTeamId: number;
   readonly homeLineup: CourtLineupPositions;
   readonly awayLineup: CourtLineupPositions;
+  readonly playersOnCourt?: number;
 }
 
 export interface RallyResolutionOutput {
@@ -51,22 +52,45 @@ export interface RallyResolutionOutput {
 export class VolleyballEngineService {
   /**
    * 1. Lógica de Rotación en el Voleibol (Sentido Horario):
-   * - Posición 1 pasa a Posición 6
-   * - Posición 6 pasa a Posición 5
-   * - Posición 5 pasa a Posición 4
-   * - Posición 4 pasa a Posición 3
-   * - Posición 3 pasa a Posición 2
-   * - Posición 2 pasa a Posición 1 (nuevo sacador)
+   * - 6 Jugadores (Estándar):
+   *   P1 -> P6, P6 -> P5, P5 -> P4, P4 -> P3, P3 -> P2, P2 -> P1 (nuevo sacador)
+   * - 4 Jugadores (Mini Voleibol):
+   *   P1 -> P4, P4 -> P3, P3 -> P2, P2 -> P1 (nuevo sacador)
+   * - 3 Jugadores (Benjamín):
+   *   P1 -> P3, P3 -> P2, P2 -> P1 (nuevo sacador)
    */
   public rotateClockwise(
     lineup: CourtLineupPositions,
+    playersOnCourt: number = 6,
   ): CourtLineupPositions {
+    if (playersOnCourt === 3) {
+      return Object.freeze({
+        pos1PlayerId: lineup.pos2PlayerId,
+        pos2PlayerId: lineup.pos3PlayerId,
+        pos3PlayerId: lineup.pos1PlayerId,
+        pos4PlayerId: null,
+        pos5PlayerId: null,
+        pos6PlayerId: null,
+      });
+    }
+
+    if (playersOnCourt === 4) {
+      return Object.freeze({
+        pos1PlayerId: lineup.pos2PlayerId,
+        pos2PlayerId: lineup.pos3PlayerId,
+        pos3PlayerId: lineup.pos4PlayerId ?? lineup.pos1PlayerId,
+        pos4PlayerId: lineup.pos1PlayerId,
+        pos5PlayerId: null,
+        pos6PlayerId: null,
+      });
+    }
+
     return Object.freeze({
       pos1PlayerId: lineup.pos2PlayerId,
       pos2PlayerId: lineup.pos3PlayerId,
-      pos3PlayerId: lineup.pos4PlayerId,
-      pos4PlayerId: lineup.pos5PlayerId,
-      pos5PlayerId: lineup.pos6PlayerId,
+      pos3PlayerId: lineup.pos4PlayerId ?? 0,
+      pos4PlayerId: lineup.pos5PlayerId ?? 0,
+      pos5PlayerId: lineup.pos6PlayerId ?? 0,
       pos6PlayerId: lineup.pos1PlayerId,
     });
   }
@@ -92,13 +116,14 @@ export class VolleyballEngineService {
     let newHomeLineup = { ...input.homeLineup };
     let newAwayLineup = { ...input.awayLineup };
     let rotatedTeamId: number | null = null;
+    const playersOnCourt = input.playersOnCourt ?? 6;
 
     if (didServeChange) {
       if (isHomeScoring) {
-        newHomeLineup = this.rotateClockwise(input.homeLineup);
+        newHomeLineup = this.rotateClockwise(input.homeLineup, playersOnCourt);
         rotatedTeamId = input.homeTeamId;
       } else {
-        newAwayLineup = this.rotateClockwise(input.awayLineup);
+        newAwayLineup = this.rotateClockwise(input.awayLineup, playersOnCourt);
         rotatedTeamId = input.awayTeamId;
       }
     }

@@ -59,9 +59,26 @@ export const TournamentDetailPage: React.FC = () => {
       {/* Cabecera Estilo SofaScore en Negro, Gris, Amarillo y Blanco */}
       <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
         <div className="space-y-1.5">
-          <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-yellow-400">
-            <Trophy className="w-4 h-4" />
-            Torneo Oficial #{tournament.id} • Formato SofaScore Live
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-yellow-400">
+              <Trophy className="w-4 h-4" />
+              Torneo #{tournament.id} • SofaScore Live
+            </span>
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
+                tournament.category === 'BENJAMIN'
+                  ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                  : tournament.category === 'MINI'
+                    ? 'bg-sky-500/15 border-sky-500/30 text-sky-300'
+                    : 'bg-yellow-400/15 border-yellow-400/30 text-yellow-300'
+              }`}
+            >
+              {tournament.category === 'BENJAMIN'
+                ? '🧒 Categoría Benjamín (3 vs 3)'
+                : tournament.category === 'MINI'
+                  ? '🏐 Categoría Mini Voleibol (4 vs 4)'
+                  : '🏆 Categoría Estándar (6 vs 6)'}
+            </span>
           </div>
           <h1 className="text-2xl md:text-3xl font-black text-white">
             {tournament.name}

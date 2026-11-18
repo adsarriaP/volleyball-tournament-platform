@@ -1,7 +1,7 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsInt, IsPositive, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, IsPositive, Max, Min } from 'class-validator';
 import {
   AuthenticatedUser,
   CurrentUser,
@@ -42,6 +42,33 @@ export class UpdateCourtPositionByJerseyDto {
   jerseyNumber!: number;
 }
 
+export class AdjustScoreDto {
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  matchId!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  setId!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  homeScore!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  awayScore!: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  servingTeamId?: number | null;
+}
+
 export class FinishSetDto {
   @Type(() => Number)
   @IsInt()
@@ -52,6 +79,11 @@ export class FinishSetDto {
   @IsInt()
   @IsPositive()
   setId!: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  winnerTeamId?: number | null;
 }
 
 export class FinishMatchDto {
@@ -59,6 +91,11 @@ export class FinishMatchDto {
   @IsInt()
   @IsPositive()
   matchId!: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  winnerTeamId?: number | null;
 }
 
 @Controller('live-scoring')
@@ -102,6 +139,15 @@ export class LiveScoringController {
     return this.liveScoringService.updateCourtPositionByJersey(dto, user);
   }
 
+  @Post('adjust-score')
+  @Roles(Role.REFEREE, Role.ADMIN)
+  async adjustScore(
+    @Body() dto: AdjustScoreDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.liveScoringService.adjustScore(dto, user);
+  }
+
   @Post('finish-set')
   @Roles(Role.REFEREE, Role.ADMIN)
   async finishSet(
@@ -112,6 +158,7 @@ export class LiveScoringController {
       dto.matchId,
       dto.setId,
       user,
+      dto.winnerTeamId,
     );
   }
 
@@ -121,6 +168,10 @@ export class LiveScoringController {
     @Body() dto: FinishMatchDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.liveScoringService.finishMatchManually(dto.matchId, user);
+    return this.liveScoringService.finishMatchManually(
+      dto.matchId,
+      user,
+      dto.winnerTeamId,
+    );
   }
 }

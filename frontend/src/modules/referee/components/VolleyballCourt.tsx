@@ -1,8 +1,9 @@
 import React from 'react';
-import { CircleDot as Volleyball, RotateCw } from 'lucide-react';
-import { LineupPositions, Player, Team } from '../../../shared/types/volleyball.types';
+import { CircleDot as Volleyball, RotateCw, Users } from 'lucide-react';
+import { LineupPositions, Player, Team, TournamentCategory } from '../../../shared/types/volleyball.types';
 
 interface VolleyballCourtProps {
+  category?: TournamentCategory;
   homeTeam: Team;
   awayTeam: Team;
   homeLineup?: LineupPositions;
@@ -10,12 +11,12 @@ interface VolleyballCourtProps {
   servingTeamId?: number;
   lastRotatedTeamId?: number | null;
   isSidesSwapped?: boolean;
-  onSlotClick?: (teamId: number, posNumber: number, currentPlayer?: Player) => void;
+  onSlotClick?: (teamId: number, posNumber: number, currentPlayer?: Player | null) => void;
 }
 
 interface CourtSlotProps {
   posNumber: number;
-  player?: Player;
+  player?: Player | null;
   isServer: boolean;
   teamColor: 'amber' | 'sky';
   isRotating: boolean;
@@ -98,6 +99,7 @@ const CourtSlot: React.FC<CourtSlotProps> = ({
  *   1 -> 6 -> 5 -> 4 -> 3 -> 2 -> 1
  */
 export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
+  category = 'STANDARD',
   homeTeam,
   awayTeam,
   homeLineup,
@@ -119,14 +121,33 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
   const isLeftRotating = lastRotatedTeamId === leftTeam.id;
   const isRightRotating = lastRotatedTeamId === rightTeam.id;
 
+  const isBenjamin = category === 'BENJAMIN';
+  const isMini = category === 'MINI';
+
+  // Texto descriptivo de rotación reglamentaria
+  const rotationText = isBenjamin
+    ? 'Benjamín (3 en cancha): P1 (Fondo/Saque) → P3 (Ataque Izq) → P2 (Ataque Der) → P1'
+    : isMini
+      ? 'Mini Voleibol (4 en cancha): P1 (Fondo Der/Saque) → P4 (Fondo Izq) → P3 (Ataque Izq) → P2 (Ataque Der) → P1'
+      : 'Estándar (6 en cancha): P1 → P6 → P5 → P4 → P3 → P2 → P1';
+
+  const categoryBadge = isBenjamin
+    ? '🧒 Benjamín (3 vs 3)'
+    : isMini
+      ? '🏐 Mini Voleibol (4 vs 4)'
+      : '🏆 Estándar (6 vs 6)';
+
   return (
     <div className="rounded-3xl border-2 border-emerald-500/30 bg-gradient-to-b from-emerald-950/60 via-slate-900 to-emerald-950/60 p-4 md:p-6 shadow-2xl">
       {/* Leyenda Superior de Cancha y Regla de Rotación */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4 text-xs">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-black">
+            {categoryBadge}
+          </span>
           <span className="inline-flex items-center gap-1.5 font-bold text-emerald-400">
             <RotateCw className="w-4 h-4" />
-            Rotación Reglamentaria Horaria: P1 → P6 → P5 → P4 → P3 → P2 → P1
+            {rotationText}
           </span>
         </div>
 
@@ -147,83 +168,190 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
               {leftTeam.name}
             </span>
             <span className="text-[10px] sm:text-[11px] uppercase tracking-wider text-slate-400">
-              Fondo (P1-P6-P5) | Red (P2-P3-P4)
+              {isBenjamin
+                ? 'Fondo (P1) | Red (P2-P3)'
+                : isMini
+                  ? 'Fondo (P1-P4) | Red (P2-P3)'
+                  : 'Fondo (P1-P6-P5) | Red (P2-P3-P4)'}
             </span>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {/* Zaguera (Fondo): Fila superior en móvil (P1-P6-P5), Columna izquierda en web (P5-P6-P1) */}
-            <div className="space-y-2">
-              <div className="text-[10px] text-center uppercase tracking-wider text-slate-400 font-semibold">
-                Zona Defensa
+          {/* VISTA SEGÚN CATEGORÍA */}
+          {isBenjamin ? (
+            /* BENJAMÍN: 3 Jugadores (P1 Fondo, P3 Delantero Izq, P2 Delantero Der) */
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {/* Fondo: P1 */}
+              <div className="space-y-2 flex flex-col justify-center">
+                <div className="text-[10px] text-center uppercase tracking-wider text-slate-400 font-semibold">
+                  Zona Fondo / Saque
+                </div>
+                <div className="flex justify-center">
+                  <CourtSlot
+                    posNumber={1}
+                    player={leftLineup?.pos1}
+                    isServer={isLeftServing}
+                    teamColor={leftColor}
+                    isRotating={isLeftRotating}
+                    className="w-full max-w-xs"
+                    onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 1, leftLineup?.pos1) : undefined}
+                  />
+                </div>
               </div>
-              <div className="grid grid-cols-3 lg:grid-cols-1 gap-2 lg:gap-2.5">
-                <CourtSlot
-                  posNumber={5}
-                  player={leftLineup?.pos5}
-                  isServer={false}
-                  teamColor={leftColor}
-                  isRotating={isLeftRotating}
-                  className="order-3 lg:order-1"
-                  onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 5, leftLineup?.pos5) : undefined}
-                />
-                <CourtSlot
-                  posNumber={6}
-                  player={leftLineup?.pos6}
-                  isServer={false}
-                  teamColor={leftColor}
-                  isRotating={isLeftRotating}
-                  className="order-2"
-                  onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 6, leftLineup?.pos6) : undefined}
-                />
-                <CourtSlot
-                  posNumber={1}
-                  player={leftLineup?.pos1}
-                  isServer={isLeftServing}
-                  teamColor={leftColor}
-                  isRotating={isLeftRotating}
-                  className="order-1 lg:order-3"
-                  onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 1, leftLineup?.pos1) : undefined}
-                />
-              </div>
-            </div>
 
-            {/* Delantera (Junto a la Red): Fila inferior en móvil (P2-P3-P4), Columna derecha en web (P4-P3-P2) */}
-            <div className="space-y-2 border-t-2 lg:border-t-0 lg:border-r-2 border-dashed border-white/20 pt-2.5 lg:pt-0 lg:pr-2">
-              <div className="text-[10px] text-center uppercase tracking-wider text-amber-300/80 font-semibold">
-                Zona Ataque (3m)
-              </div>
-              <div className="grid grid-cols-3 lg:grid-cols-1 gap-2 lg:gap-2.5">
-                <CourtSlot
-                  posNumber={4}
-                  player={leftLineup?.pos4}
-                  isServer={false}
-                  teamColor={leftColor}
-                  isRotating={isLeftRotating}
-                  className="order-3 lg:order-1"
-                  onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 4, leftLineup?.pos4) : undefined}
-                />
-                <CourtSlot
-                  posNumber={3}
-                  player={leftLineup?.pos3}
-                  isServer={false}
-                  teamColor={leftColor}
-                  isRotating={isLeftRotating}
-                  className="order-2"
-                  onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 3, leftLineup?.pos3) : undefined}
-                />
-                <CourtSlot
-                  posNumber={2}
-                  player={leftLineup?.pos2}
-                  isServer={false}
-                  teamColor={leftColor}
-                  isRotating={isLeftRotating}
-                  className="order-1 lg:order-3"
-                  onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 2, leftLineup?.pos2) : undefined}
-                />
+              {/* Ataque: P3 y P2 */}
+              <div className="space-y-2 border-t-2 lg:border-t-0 lg:border-r-2 border-dashed border-white/20 pt-2.5 lg:pt-0 lg:pr-2">
+                <div className="text-[10px] text-center uppercase tracking-wider text-amber-300/80 font-semibold">
+                  Zona Ataque (Red)
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 lg:gap-2.5">
+                  <CourtSlot
+                    posNumber={3}
+                    player={leftLineup?.pos3}
+                    isServer={false}
+                    teamColor={leftColor}
+                    isRotating={isLeftRotating}
+                    onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 3, leftLineup?.pos3) : undefined}
+                  />
+                  <CourtSlot
+                    posNumber={2}
+                    player={leftLineup?.pos2}
+                    isServer={false}
+                    teamColor={leftColor}
+                    isRotating={isLeftRotating}
+                    onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 2, leftLineup?.pos2) : undefined}
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          ) : isMini ? (
+            /* MINI VOLEIBOL: 4 Jugadores (P4-P1 Fondo, P3-P2 Ataque) */
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {/* Fondo: P4 (Izq), P1 (Der/Saque) */}
+              <div className="space-y-2">
+                <div className="text-[10px] text-center uppercase tracking-wider text-slate-400 font-semibold">
+                  Zona Fondo
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 lg:gap-2.5">
+                  <CourtSlot
+                    posNumber={4}
+                    player={leftLineup?.pos4}
+                    isServer={false}
+                    teamColor={leftColor}
+                    isRotating={isLeftRotating}
+                    onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 4, leftLineup?.pos4) : undefined}
+                  />
+                  <CourtSlot
+                    posNumber={1}
+                    player={leftLineup?.pos1}
+                    isServer={isLeftServing}
+                    teamColor={leftColor}
+                    isRotating={isLeftRotating}
+                    onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 1, leftLineup?.pos1) : undefined}
+                  />
+                </div>
+              </div>
+
+              {/* Ataque: P3 (Izq), P2 (Der) */}
+              <div className="space-y-2 border-t-2 lg:border-t-0 lg:border-r-2 border-dashed border-white/20 pt-2.5 lg:pt-0 lg:pr-2">
+                <div className="text-[10px] text-center uppercase tracking-wider text-amber-300/80 font-semibold">
+                  Zona Ataque (Red)
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 lg:gap-2.5">
+                  <CourtSlot
+                    posNumber={3}
+                    player={leftLineup?.pos3}
+                    isServer={false}
+                    teamColor={leftColor}
+                    isRotating={isLeftRotating}
+                    onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 3, leftLineup?.pos3) : undefined}
+                  />
+                  <CourtSlot
+                    posNumber={2}
+                    player={leftLineup?.pos2}
+                    isServer={false}
+                    teamColor={leftColor}
+                    isRotating={isLeftRotating}
+                    onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 2, leftLineup?.pos2) : undefined}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* ESTÁNDAR: 6 Jugadores reglamentarios */
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {/* Zaguera (Fondo) */}
+              <div className="space-y-2">
+                <div className="text-[10px] text-center uppercase tracking-wider text-slate-400 font-semibold">
+                  Zona Defensa
+                </div>
+                <div className="grid grid-cols-3 lg:grid-cols-1 gap-2 lg:gap-2.5">
+                  <CourtSlot
+                    posNumber={5}
+                    player={leftLineup?.pos5}
+                    isServer={false}
+                    teamColor={leftColor}
+                    isRotating={isLeftRotating}
+                    className="order-3 lg:order-1"
+                    onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 5, leftLineup?.pos5) : undefined}
+                  />
+                  <CourtSlot
+                    posNumber={6}
+                    player={leftLineup?.pos6}
+                    isServer={false}
+                    teamColor={leftColor}
+                    isRotating={isLeftRotating}
+                    className="order-2"
+                    onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 6, leftLineup?.pos6) : undefined}
+                  />
+                  <CourtSlot
+                    posNumber={1}
+                    player={leftLineup?.pos1}
+                    isServer={isLeftServing}
+                    teamColor={leftColor}
+                    isRotating={isLeftRotating}
+                    className="order-1 lg:order-3"
+                    onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 1, leftLineup?.pos1) : undefined}
+                  />
+                </div>
+              </div>
+
+              {/* Delantera (Junto a la Red) */}
+              <div className="space-y-2 border-t-2 lg:border-t-0 lg:border-r-2 border-dashed border-white/20 pt-2.5 lg:pt-0 lg:pr-2">
+                <div className="text-[10px] text-center uppercase tracking-wider text-amber-300/80 font-semibold">
+                  Zona Ataque (3m)
+                </div>
+                <div className="grid grid-cols-3 lg:grid-cols-1 gap-2 lg:gap-2.5">
+                  <CourtSlot
+                    posNumber={4}
+                    player={leftLineup?.pos4}
+                    isServer={false}
+                    teamColor={leftColor}
+                    isRotating={isLeftRotating}
+                    className="order-3 lg:order-1"
+                    onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 4, leftLineup?.pos4) : undefined}
+                  />
+                  <CourtSlot
+                    posNumber={3}
+                    player={leftLineup?.pos3}
+                    isServer={false}
+                    teamColor={leftColor}
+                    isRotating={isLeftRotating}
+                    className="order-2"
+                    onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 3, leftLineup?.pos3) : undefined}
+                  />
+                  <CourtSlot
+                    posNumber={2}
+                    player={leftLineup?.pos2}
+                    isServer={false}
+                    teamColor={leftColor}
+                    isRotating={isLeftRotating}
+                    className="order-1 lg:order-3"
+                    onClick={onSlotClick ? () => onSlotClick(leftTeam.id, 2, leftLineup?.pos2) : undefined}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* RED CENTRAL DE VOLEIBOL */}
@@ -239,86 +367,193 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
         <div className="lg:col-span-5 flex flex-col justify-between space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-1 px-1">
             <span className="text-[10px] sm:text-[11px] uppercase tracking-wider text-slate-400 order-2 lg:order-1">
-              Red (P4-P3-P2) | Fondo (P5-P6-P1)
+              {isBenjamin
+                ? 'Red (P2-P3) | Fondo (P1)'
+                : isMini
+                  ? 'Red (P2-P3) | Fondo (P1-P4)'
+                  : 'Red (P4-P3-P2) | Fondo (P5-P6-P1)'}
             </span>
             <span className="font-extrabold text-sm md:text-base text-white order-1 lg:order-2">
               {rightTeam.name}
             </span>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {/* Delantera (Junto a la Red): Fila superior en móvil (P4-P3-P2), Columna izquierda en web (P2-P3-P4) */}
-            <div className="space-y-2 border-b-2 lg:border-b-0 lg:border-l-2 border-dashed border-white/20 pb-2.5 lg:pb-0 lg:pl-2">
-              <div className="text-[10px] text-center uppercase tracking-wider text-sky-300/80 font-semibold">
-                Zona Ataque (3m)
+          {/* VISTA SEGÚN CATEGORÍA */}
+          {isBenjamin ? (
+            /* BENJAMÍN DERECHA: P2 y P3 en Ataque, P1 en Fondo */
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {/* Ataque: P2 y P3 */}
+              <div className="space-y-2 border-b-2 lg:border-b-0 lg:border-l-2 border-dashed border-white/20 pb-2.5 lg:pb-0 lg:pl-2">
+                <div className="text-[10px] text-center uppercase tracking-wider text-sky-300/80 font-semibold">
+                  Zona Ataque (Red)
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 lg:gap-2.5">
+                  <CourtSlot
+                    posNumber={2}
+                    player={rightLineup?.pos2}
+                    isServer={false}
+                    teamColor={rightColor}
+                    isRotating={isRightRotating}
+                    onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 2, rightLineup?.pos2) : undefined}
+                  />
+                  <CourtSlot
+                    posNumber={3}
+                    player={rightLineup?.pos3}
+                    isServer={false}
+                    teamColor={rightColor}
+                    isRotating={isRightRotating}
+                    onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 3, rightLineup?.pos3) : undefined}
+                  />
+                </div>
               </div>
-              <div className="grid grid-cols-3 lg:grid-cols-1 gap-2 lg:gap-2.5">
-                <CourtSlot
-                  posNumber={2}
-                  player={rightLineup?.pos2}
-                  isServer={false}
-                  teamColor={rightColor}
-                  isRotating={isRightRotating}
-                  className="order-3 lg:order-1"
-                  onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 2, rightLineup?.pos2) : undefined}
-                />
-                <CourtSlot
-                  posNumber={3}
-                  player={rightLineup?.pos3}
-                  isServer={false}
-                  teamColor={rightColor}
-                  isRotating={isRightRotating}
-                  className="order-2"
-                  onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 3, rightLineup?.pos3) : undefined}
-                />
-                <CourtSlot
-                  posNumber={4}
-                  player={rightLineup?.pos4}
-                  isServer={false}
-                  teamColor={rightColor}
-                  isRotating={isRightRotating}
-                  className="order-1 lg:order-3"
-                  onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 4, rightLineup?.pos4) : undefined}
-                />
-              </div>
-            </div>
 
-            {/* Zaguera (Fondo): Fila inferior en móvil (P5-P6-P1), Columna derecha en web (P1-P6-P5) */}
-            <div className="space-y-2">
-              <div className="text-[10px] text-center uppercase tracking-wider text-slate-400 font-semibold">
-                Zona Defensa
-              </div>
-              <div className="grid grid-cols-3 lg:grid-cols-1 gap-2 lg:gap-2.5">
-                <CourtSlot
-                  posNumber={1}
-                  player={rightLineup?.pos1}
-                  isServer={isRightServing}
-                  teamColor={rightColor}
-                  isRotating={isRightRotating}
-                  className="order-3 lg:order-1"
-                  onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 1, rightLineup?.pos1) : undefined}
-                />
-                <CourtSlot
-                  posNumber={6}
-                  player={rightLineup?.pos6}
-                  isServer={false}
-                  teamColor={rightColor}
-                  isRotating={isRightRotating}
-                  className="order-2"
-                  onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 6, rightLineup?.pos6) : undefined}
-                />
-                <CourtSlot
-                  posNumber={5}
-                  player={rightLineup?.pos5}
-                  isServer={false}
-                  teamColor={rightColor}
-                  isRotating={isRightRotating}
-                  className="order-1 lg:order-3"
-                  onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 5, rightLineup?.pos5) : undefined}
-                />
+              {/* Fondo: P1 */}
+              <div className="space-y-2 flex flex-col justify-center">
+                <div className="text-[10px] text-center uppercase tracking-wider text-slate-400 font-semibold">
+                  Zona Fondo / Saque
+                </div>
+                <div className="flex justify-center">
+                  <CourtSlot
+                    posNumber={1}
+                    player={rightLineup?.pos1}
+                    isServer={isRightServing}
+                    teamColor={rightColor}
+                    isRotating={isRightRotating}
+                    className="w-full max-w-xs"
+                    onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 1, rightLineup?.pos1) : undefined}
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          ) : isMini ? (
+            /* MINI VOLEIBOL DERECHA: P2-P3 en Ataque, P1-P4 en Fondo */
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {/* Ataque: P2 (Der), P3 (Izq) */}
+              <div className="space-y-2 border-b-2 lg:border-b-0 lg:border-l-2 border-dashed border-white/20 pb-2.5 lg:pb-0 lg:pl-2">
+                <div className="text-[10px] text-center uppercase tracking-wider text-sky-300/80 font-semibold">
+                  Zona Ataque (Red)
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 lg:gap-2.5">
+                  <CourtSlot
+                    posNumber={2}
+                    player={rightLineup?.pos2}
+                    isServer={false}
+                    teamColor={rightColor}
+                    isRotating={isRightRotating}
+                    onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 2, rightLineup?.pos2) : undefined}
+                  />
+                  <CourtSlot
+                    posNumber={3}
+                    player={rightLineup?.pos3}
+                    isServer={false}
+                    teamColor={rightColor}
+                    isRotating={isRightRotating}
+                    onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 3, rightLineup?.pos3) : undefined}
+                  />
+                </div>
+              </div>
+
+              {/* Fondo: P1 (Fondo Der/Saque), P4 (Fondo Izq) */}
+              <div className="space-y-2">
+                <div className="text-[10px] text-center uppercase tracking-wider text-slate-400 font-semibold">
+                  Zona Fondo
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 lg:gap-2.5">
+                  <CourtSlot
+                    posNumber={1}
+                    player={rightLineup?.pos1}
+                    isServer={isRightServing}
+                    teamColor={rightColor}
+                    isRotating={isRightRotating}
+                    onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 1, rightLineup?.pos1) : undefined}
+                  />
+                  <CourtSlot
+                    posNumber={4}
+                    player={rightLineup?.pos4}
+                    isServer={false}
+                    teamColor={rightColor}
+                    isRotating={isRightRotating}
+                    onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 4, rightLineup?.pos4) : undefined}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* ESTÁNDAR DERECHA: 6 Jugadores */
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {/* Delantera (Junto a la Red) */}
+              <div className="space-y-2 border-b-2 lg:border-b-0 lg:border-l-2 border-dashed border-white/20 pb-2.5 lg:pb-0 lg:pl-2">
+                <div className="text-[10px] text-center uppercase tracking-wider text-sky-300/80 font-semibold">
+                  Zona Ataque (3m)
+                </div>
+                <div className="grid grid-cols-3 lg:grid-cols-1 gap-2 lg:gap-2.5">
+                  <CourtSlot
+                    posNumber={2}
+                    player={rightLineup?.pos2}
+                    isServer={false}
+                    teamColor={rightColor}
+                    isRotating={isRightRotating}
+                    className="order-3 lg:order-1"
+                    onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 2, rightLineup?.pos2) : undefined}
+                  />
+                  <CourtSlot
+                    posNumber={3}
+                    player={rightLineup?.pos3}
+                    isServer={false}
+                    teamColor={rightColor}
+                    isRotating={isRightRotating}
+                    className="order-2"
+                    onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 3, rightLineup?.pos3) : undefined}
+                  />
+                  <CourtSlot
+                    posNumber={4}
+                    player={rightLineup?.pos4}
+                    isServer={false}
+                    teamColor={rightColor}
+                    isRotating={isRightRotating}
+                    className="order-1 lg:order-3"
+                    onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 4, rightLineup?.pos4) : undefined}
+                  />
+                </div>
+              </div>
+
+              {/* Zaguera (Fondo) */}
+              <div className="space-y-2">
+                <div className="text-[10px] text-center uppercase tracking-wider text-slate-400 font-semibold">
+                  Zona Defensa
+                </div>
+                <div className="grid grid-cols-3 lg:grid-cols-1 gap-2 lg:gap-2.5">
+                  <CourtSlot
+                    posNumber={1}
+                    player={rightLineup?.pos1}
+                    isServer={isRightServing}
+                    teamColor={rightColor}
+                    isRotating={isRightRotating}
+                    className="order-3 lg:order-1"
+                    onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 1, rightLineup?.pos1) : undefined}
+                  />
+                  <CourtSlot
+                    posNumber={6}
+                    player={rightLineup?.pos6}
+                    isServer={false}
+                    teamColor={rightColor}
+                    isRotating={isRightRotating}
+                    className="order-2"
+                    onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 6, rightLineup?.pos6) : undefined}
+                  />
+                  <CourtSlot
+                    posNumber={5}
+                    player={rightLineup?.pos5}
+                    isServer={false}
+                    teamColor={rightColor}
+                    isRotating={isRightRotating}
+                    className="order-1 lg:order-3"
+                    onClick={onSlotClick ? () => onSlotClick(rightTeam.id, 5, rightLineup?.pos5) : undefined}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

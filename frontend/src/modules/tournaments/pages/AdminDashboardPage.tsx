@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  CircleDot as Volleyball,
   Edit3,
   ExternalLink,
   Loader2,
@@ -103,6 +104,11 @@ export const AdminDashboardPage: React.FC = () => {
     queryFn: () => apiFetch<AuthUser[]>('/auth/referees'),
   });
 
+  const { data: friendlyMatches } = useQuery<MatchSummary[]>({
+    queryKey: ['admin-friendly-matches'],
+    queryFn: () => apiFetch<MatchSummary[]>('/matches/friendlies'),
+  });
+
   const createFriendlyMatchMutation = useMutation({
     mutationFn: () => {
       setErrorMsg(null);
@@ -144,6 +150,7 @@ export const AdminDashboardPage: React.FC = () => {
         }));
       }
       void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin-friendly-matches'] });
     },
     onError: (err: Error) => {
       setErrorMsg(err.message);
@@ -258,6 +265,7 @@ export const AdminDashboardPage: React.FC = () => {
       setFeedback(msg);
       toast.success(msg);
       void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin-friendly-matches'] });
     },
     onError: (err: Error) => {
       setErrorMsg(err.message);
@@ -290,6 +298,7 @@ export const AdminDashboardPage: React.FC = () => {
       setFeedback(msg);
       toast.success(msg);
       void queryClient.invalidateQueries({ queryKey: ['tournaments-list'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin-friendly-matches'] });
     },
     onError: (err: Error) => {
       setErrorMsg(err.message);
@@ -336,12 +345,19 @@ export const AdminDashboardPage: React.FC = () => {
     });
   };
 
-  const totalTournaments = tournaments?.length ?? 0;
-  const totalTeams =
-    tournaments?.reduce((acc, t) => acc + t.teams.length, 0) ?? 0;
+  const officialTournaments = (tournaments ?? []).filter(
+    (t) =>
+      !t.name.toLowerCase().includes('amistoso') &&
+      !t.name.toLowerCase().includes('fogueo'),
+  );
+
+  const totalTournaments = officialTournaments.length;
+  const totalTeams = allTeams?.length ?? 0;
   const totalReferees = referees?.length ?? 0;
+  const totalFriendlyMatches = friendlyMatches?.length ?? 0;
   const totalMatches =
-    tournaments?.reduce((acc, t) => acc + t.matches.length, 0) ?? 0;
+    officialTournaments.reduce((acc, t) => acc + t.matches.length, 0) +
+    totalFriendlyMatches;
 
   return (
     <AdminSidebarLayout>
@@ -487,9 +503,212 @@ export const AdminDashboardPage: React.FC = () => {
             </div>
           )}
 
-        {/* Torneos Creados: Iniciar y Programar Canchas */}
+        {/* TABLA DEDICADA: PartIDOS AMISTOSOS Y DE FOGUEO */}
+        <div className="rounded-3xl border border-zinc-800 bg-zinc-900/90 backdrop-blur-xl p-6 space-y-4 shadow-2xl">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+            <div>
+              <h2 className="text-xl font-black text-white flex items-center gap-2">
+                <Volleyball className="w-5 h-5 text-yellow-400" />
+                <span>
+                  Partidos Amistosos y de Fogueo ({friendlyMatches?.length ?? 0})
+                </span>
+              </h2>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Encuentros independientes sin acumulación de fase de grupos ni
+                tabla general.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsFriendlyModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black bg-yellow-400 hover:bg-yellow-300 text-zinc-950 transition shadow-md shadow-yellow-400/20"
+            >
+              <Plus className="w-4 h-4" />
+              Nuevo Amistoso / Fogueo
+            </button>
+          </div>
+
+          {!friendlyMatches || friendlyMatches.length === 0 ? (
+            <div className="p-8 text-center text-xs text-zinc-400">
+              No hay partidos amistosos registrados aún. Presiona "Nuevo
+              Amistoso / Fogueo" para programar el primero.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {friendlyMatches.map((m) => {
+                const edit = scheduleEdits[m.id];
+                const scheduledVal =
+                  edit?.scheduledAt !== undefined
+                    ? edit.scheduledAt
+                    : m.scheduledAt
+                      ? m.scheduledAt.slice(0, 16)
+                      : '';
+                const courtVal =
+                  edit?.courtNumber !== undefined
+                    ? edit.courtNumber
+                    : (m.courtNumber ?? '');
+                const mapVal =
+                  edit?.courtMapUrl !== undefined
+                    ? edit.courtMapUrl
+                    : (m.courtMapUrl ?? '');
+                const refVal =
+                  edit?.refereeId !== undefined
+                    ? edit.refereeId
+                    : m.refereeId
+                      ? String(m.refereeId)
+                      : '';
+                const isSavingThis =
+                  scheduleMatchMutation.isPending &&
+                  scheduleMatchMutation.variables?.id === m.id;
+
+                return (
+                  <div
+                    key={m.id}
+                    className="p-4 rounded-2xl bg-zinc-950/80 border border-zinc-800 space-y-3"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/80 pb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-white">
+                          Partido #{m.id}
+                        </span>
+                        {m.status === 'IN_PROGRESS' ? (
+                          <span className="px-2 py-0.5 rounded bg-yellow-400 text-zinc-950 font-black text-[10px] animate-pulse">
+                            EN VIVO
+                          </span>
+                        ) : m.status === 'FINISHED' ? (
+                          <span className="px-2 py-0.5 rounded bg-zinc-800 text-emerald-400 font-black text-[10px]">
+                            FINALIZADO
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 font-bold text-[10px]">
+                            PROGRAMADO
+                          </span>
+                        )}
+                        <span className="text-xs font-mono font-bold text-yellow-400">
+                          ({m.homeSetsWon} - {m.awaySetsWon} Sets)
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openMatchResultEditor(m)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-zinc-900 hover:bg-zinc-800 text-yellow-400 border border-zinc-800 transition"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Corregir Marcador</span>
+                        </button>
+                        <Link
+                          to={`/referee/matches/${m.id}/score`}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 transition"
+                        >
+                          Planilla
+                        </Link>
+                        <Link
+                          to={`/matches/${m.id}/live`}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 transition"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          En Vivo
+                        </Link>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-sm font-black text-white">
+                      <span className="text-amber-400">{m.homeTeam.name}</span>
+                      <span className="text-zinc-500 text-xs">vs</span>
+                      <span className="text-sky-400">{m.awayTeam.name}</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 pt-1">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-zinc-400 mb-1">
+                          Fecha y Hora
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={scheduledVal}
+                          onChange={(e) =>
+                            updateEditField(m, 'scheduledAt', e.target.value)
+                          }
+                          className="w-full px-2.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:border-yellow-400 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-zinc-400 mb-1">
+                          Cancha / Sede
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ej. Cancha 1"
+                          value={courtVal}
+                          onChange={(e) =>
+                            updateEditField(m, 'courtNumber', e.target.value)
+                          }
+                          className="w-full px-2.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:border-yellow-400 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-zinc-400 mb-1">
+                          Link Google Maps
+                        </label>
+                        <input
+                          type="url"
+                          placeholder="https://maps.google.com/..."
+                          value={mapVal}
+                          onChange={(e) =>
+                            updateEditField(m, 'courtMapUrl', e.target.value)
+                          }
+                          className="w-full px-2.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:border-yellow-400 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-zinc-400 mb-1">
+                          Juez Asignado
+                        </label>
+                        <select
+                          value={refVal}
+                          onChange={(e) =>
+                            updateEditField(m, 'refereeId', e.target.value)
+                          }
+                          className="w-full px-2.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:border-yellow-400 outline-none"
+                        >
+                          <option value="">Sin juez asignado</option>
+                          {referees?.map((ref) => (
+                            <option key={ref.id} value={ref.id}>
+                              {ref.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex items-end">
+                        <button
+                          type="button"
+                          disabled={isSavingThis}
+                          onClick={() => scheduleMatchMutation.mutate(m)}
+                          className="w-full py-2 rounded-xl text-xs font-black bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 text-zinc-950 transition"
+                        >
+                          {isSavingThis ? 'Guardando...' : 'Guardar Datos'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Torneos Oficiales Creados: Iniciar y Programar Canchas */}
         <div className="space-y-6">
-          {tournaments?.map((tournament) => (
+          <div className="flex items-center gap-2 px-1">
+            <Trophy className="w-5 h-5 text-yellow-400" />
+            <h2 className="text-xl font-black text-white">
+              Torneos Oficiales Registrados ({officialTournaments.length})
+            </h2>
+          </div>
+
+          {officialTournaments.map((tournament) => (
             <div
               key={tournament.id}
               className="rounded-3xl border border-zinc-800 bg-zinc-900/90 backdrop-blur-xl p-6 space-y-5 shadow-2xl"
@@ -504,6 +723,21 @@ export const AdminDashboardPage: React.FC = () => {
                         Finalizado
                       </span>
                     )}
+                    <span
+                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${
+                        tournament.category === 'BENJAMIN'
+                          ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                          : tournament.category === 'MINI'
+                            ? 'bg-sky-500/15 border-sky-500/30 text-sky-300'
+                            : 'bg-yellow-400/15 border-yellow-400/30 text-yellow-300'
+                      }`}
+                    >
+                      {tournament.category === 'BENJAMIN'
+                        ? '🧒 Benjamín (3v3)'
+                        : tournament.category === 'MINI'
+                          ? '🏐 Mini (4v4)'
+                          : '🏆 Estándar (6v6)'}
+                    </span>
                     <Link
                       to={`/tournaments/${tournament.id}`}
                       className="text-xs font-black text-yellow-400 hover:underline"

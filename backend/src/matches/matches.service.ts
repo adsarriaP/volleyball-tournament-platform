@@ -425,4 +425,37 @@ export class MatchesService {
       resultsHistory: matches.filter((m) => m.status === MatchStatus.FINISHED),
     };
   }
+
+  /**
+   * Devuelve todos los partidos amistosos / de fogueo registrados.
+   */
+  public async findFriendlyMatches() {
+    return this.prisma.match.findMany({
+      where: {
+        OR: [
+          { tournament: { name: { contains: 'Amistoso' } } },
+          { tournament: { name: { contains: 'Fogueo' } } },
+          { phase: { name: { contains: 'Amistoso' } } },
+          { phase: { name: { contains: 'Fogueo' } } },
+        ],
+      },
+      include: {
+        tournament: true,
+        phase: true,
+        homeTeam: true,
+        awayTeam: true,
+        winnerTeam: true,
+        referee: {
+          select: { id: true, name: true, email: true },
+        },
+        sets: {
+          orderBy: { setNumber: 'asc' },
+        },
+      },
+      orderBy: [
+        { scheduledAt: 'desc' },
+        { id: 'desc' },
+      ],
+    });
+  }
 }

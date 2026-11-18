@@ -6,6 +6,7 @@ import {
 import {
   MatchStatus,
   PhaseType,
+  TournamentCategory,
   TournamentFormatType,
   TournamentStatus,
 } from '@prisma/client';
@@ -14,6 +15,7 @@ import { PrismaService } from '../prisma/prisma.service';
 export interface CreateTournamentInput {
   name: string;
   formatType: TournamentFormatType;
+  category?: TournamentCategory;
   maxTeams?: number;
   groupsCount?: number;
   maxSets?: number;
@@ -66,6 +68,7 @@ export class TournamentsService {
       data: {
         name: input.name.trim(),
         formatType: input.formatType,
+        category: input.category ?? TournamentCategory.STANDARD,
         maxTeams: input.maxTeams ?? 20,
         groupsCount: input.groupsCount ?? 2,
         maxSets: input.maxSets ?? 3,
@@ -812,6 +815,7 @@ export class TournamentsService {
       data: {
         name: input.name !== undefined ? input.name.trim() : undefined,
         formatType: input.formatType,
+        category: input.category,
         maxTeams: input.maxTeams,
         groupsCount: input.groupsCount,
         maxSets: input.maxSets,
