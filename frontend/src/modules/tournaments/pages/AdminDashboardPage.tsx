@@ -35,6 +35,7 @@ import {
 interface TournamentWithMatches extends TournamentRules {
   teams: Team[];
   matches: MatchSummary[];
+  phases?: { id: number; name: string; phaseOrder: number; phaseType: string }[];
 }
 
 export const AdminDashboardPage: React.FC = () => {
@@ -806,7 +807,12 @@ export const AdminDashboardPage: React.FC = () => {
                         ) : (
                           <>
                             <Trophy className="w-3.5 h-3.5" />
-                            Generar Llaves Fase Final (Top {tournament.qualifiersPerGroup}/Grupo)
+                            {tournament.phases &&
+                            tournament.phases.length > 0 &&
+                            tournament.phases[tournament.phases.length - 1]
+                              ?.phaseType === 'SINGLE_ELIMINATION'
+                              ? '🏆 Avanzar Siguiente Ronda / Gran Final'
+                              : `Generar Llaves Fase Final (Top ${tournament.qualifiersPerGroup}/Grupo)`}
                           </>
                         )}
                       </button>

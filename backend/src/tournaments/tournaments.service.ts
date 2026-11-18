@@ -287,19 +287,23 @@ export class TournamentsService {
           awayRow.setsWon += m.awaySetsWon;
           awayRow.setsLost += m.homeSetsWon;
 
-          const isFullDistance =
-            m.homeSetsWon + m.awaySetsWon === tournament.maxSets;
+          // Si ambos equipos ganaron al menos 1 set (ej. 1-1 en sets decidido por puntos o 2-1 tiebreak):
+          const sharedSets = m.homeSetsWon > 0 && m.awaySetsWon > 0;
 
           if (m.winnerTeamId === m.homeTeamId) {
             homeRow.won += 1;
             awayRow.lost += 1;
-            homeRow.points += isFullDistance ? 2 : 3;
-            awayRow.points += isFullDistance ? 1 : 0;
+            homeRow.points += sharedSets ? 2 : 3;
+            awayRow.points += sharedSets ? 1 : 0;
           } else if (m.winnerTeamId === m.awayTeamId) {
             awayRow.won += 1;
             homeRow.lost += 1;
-            awayRow.points += isFullDistance ? 2 : 3;
-            homeRow.points += isFullDistance ? 1 : 0;
+            awayRow.points += sharedSets ? 2 : 3;
+            homeRow.points += sharedSets ? 1 : 0;
+          } else if (m.winnerTeamId === null) {
+            // Empate oficial determinado por el árbitro / administrador
+            homeRow.points += 1;
+            awayRow.points += 1;
           }
         }
       }
@@ -657,6 +661,127 @@ export class TournamentsService {
   async advanceGroupQualifiersToKnockout(tournamentId: number) {
     const detail = await this.findTournamentDetail(tournamentId);
 
+    // 1. Revisar si ya existe una fase eliminatoria previa (ej. Semifinales o Cuartos)
+    const phases = detail.phases ?? [];
+    const lastPhase = phases.length > 0 ? phases[phases.length - 1] : null;
+
+    if (lastPhase && lastPhase.phaseType === PhaseType.SINGLE_ELIMINATION) {
+      const lastPhaseMatches = detail.matches.filter(
+        (m) => m.phaseId === lastPhase.id,
+      );
+
+      if (lastPhaseMatches.length === 0) {
+        throw new BadRequestException(
+          `La fase ${lastPhase.name} no cuenta con partidos para avanzar.`,
+        );
+      }
+
+      const pendingMatches = lastPhaseMatches.filter(
+        (m) => m.status !== MatchStatus.FINISHED,
+      );
+      if (pendingMatches.length > 0) {
+        throw new BadRequestException(
+          `Aún hay ${pendingMatches.length} partido(s) pendiente(s) en ${lastPhase.name}. Los jueces deben finalizar todos los partidos antes de generar la siguiente ronda.`,
+        );
+      }
+
+      if (
+        lastPhaseMatches.length === 1 ||
+        lastPhase.name.toLowerCase().includes('gran final')
+      ) {
+        throw new BadRequestException(
+          'El torneo ya disputó la Gran Final y no admite más rondas eliminatorias.',
+        );
+      }
+
+      // Extraer los ganadores determinados por los árbitros (winnerTeamId)
+      const winners: number[] = [];
+      for (const m of lastPhaseMatches) {
+        if (!m.winnerTeamId) {
+          throw new BadRequestException(
+            `El partido #${m.id} (${m.homeTeam.name} vs ${m.awayTeam.name}) finalizó en empate sin ganador. En fases eliminatorias el juez debe declarar un equipo ganador (por sets o diferencia de puntos) para avanzar a la final.`,
+          );
+        }
+        winners.push(m.winnerTeamId);
+      }
+
+      if (winners.length < 2) {
+        throw new BadRequestException(
+          'Se requieren al menos 2 equipos ganadores para generar la siguiente ronda eliminatoria.',
+        );
+      }
+
+      const nextPhaseName =
+        winners.length === 2
+          ? 'Gran Final'
+          : winners.length === 4
+            ? 'Semifinales'
+            : `Fase Eliminatoria (${winners.length} Equipos)`;
+
+      return this.prisma.$transaction(
+        async (tx) => {
+          const phase = await tx.tournamentPhase.create({
+            data: {
+              tournamentId: detail.id,
+              name: nextPhaseName,
+              phaseOrder: detail.phases.length + 1,
+              phaseType: PhaseType.SINGLE_ELIMINATION,
+            },
+          });
+
+          const rawPairings: {
+            homeTeamId: number;
+            awayTeamId: number;
+            phaseId: number;
+          }[] = [];
+
+          for (let i = 0; i + 1 < winners.length; i += 2) {
+            rawPairings.push({
+              phaseId: phase.id,
+              homeTeamId: winners[i],
+              awayTeamId: winners[i + 1],
+            });
+          }
+
+          const scheduled = this.assignAutomaticSchedule(
+            rawPairings,
+            detail.endDate ?? detail.startDate,
+            detail.endDate ?? detail.startDate,
+            detail.dailyStartHour,
+            detail.dailyEndHour,
+          );
+
+          const createdMatches = [];
+          for (const p of scheduled) {
+            const m = await tx.match.create({
+              data: {
+                tournamentId: detail.id,
+                phaseId: p.phaseId,
+                homeTeamId: p.homeTeamId,
+                awayTeamId: p.awayTeamId,
+                scheduledAt: p.scheduledAt,
+                status: MatchStatus.SCHEDULED,
+              },
+              include: {
+                homeTeam: true,
+                awayTeam: true,
+                phase: true,
+              },
+            });
+            createdMatches.push(m);
+          }
+
+          return {
+            phaseName: nextPhaseName,
+            totalKnockoutMatches: createdMatches.length,
+            matches: createdMatches,
+          };
+        },
+        { maxWait: 20000, timeout: 60000 },
+      );
+    }
+
+    // 2. Si venimos de Fase de Grupos
     if (
       !detail.groupStandings ||
       detail.groupStandings.length === 0
@@ -681,7 +806,7 @@ export class TournamentsService {
       allQualified.length >= 8
         ? 'Cuartos de Final (Fase Eliminatoria)'
         : allQualified.length === 4
-          ? 'Fase Final - Cuartos / Semifinales (Top 4)'
+          ? 'Semifinales (Fase Final)'
           : 'Gran Final';
 
     return this.prisma.$transaction(async (tx) => {

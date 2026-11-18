@@ -77,6 +77,15 @@ export const RefereeScoreboardControl: React.FC<
   const homeSetsWon = match.homeSetsWon ?? 0;
   const awaySetsWon = match.awaySetsWon ?? 0;
 
+  // Cálculo de puntos acumulados de todos los sets para asistencia arbitral
+  const totalHomePoints =
+    (match.setsHistory ?? []).reduce((acc, s) => acc + s.homeScore, 0) +
+    (currentSet && currentSet.status !== 'COMPLETED' ? currentSet.homeScore : 0);
+  const totalAwayPoints =
+    (match.setsHistory ?? []).reduce((acc, s) => acc + s.awayScore, 0) +
+    (currentSet && currentSet.status !== 'COMPLETED' ? currentSet.awayScore : 0);
+  const pointDifference = totalHomePoints - totalAwayPoints;
+
   // Detectar si estamos en Set Ball / Match Ball
   const isHomeAtSetPoint =
     homeScore >= targetPoints - 1 && homeScore - awayScore >= minDiff - 1;
@@ -596,15 +605,26 @@ export const RefereeScoreboardControl: React.FC<
             </div>
 
             {homeSetsWon === awaySetsWon && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300">
-                <p className="font-semibold">
-                  El partido está empatado {homeSetsWon} - {awaySetsWon}. Puedes
-                  darlo por terminado en empate oficial o declarar un ganador si
-                  las bases del torneo lo permiten.
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-1 text-amber-300 font-bold border-b border-amber-500/20 pb-2">
+                  <span>Puntos Acumulados:</span>
+                  <span className="font-mono text-xs sm:text-sm bg-zinc-950 px-2 py-0.5 rounded-lg border border-amber-400/30">
+                    {homeTeam.name}: {totalHomePoints} vs {awayTeam.name}: {totalAwayPoints}
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-300 leading-relaxed">
+                  Diferencia de puntos:{' '}
+                  <strong className="text-yellow-400 font-black">
+                    {pointDifference > 0
+                      ? `+${pointDifference} a favor de ${homeTeam.name}`
+                      : pointDifference < 0
+                        ? `+${Math.abs(pointDifference)} a favor de ${awayTeam.name}`
+                        : '0 (Empate exacto en puntos)'}
+                  </strong>
+                  . Si el torneo define desempate por puntos en partidos de 2 sets, puedes seleccionar al ganador con mayor puntuación, o registrar empate oficial.
                 </p>
-                <p className="mt-1 text-[11px] text-zinc-400">
-                  ¿Quieres jugar desempate? Cancela este modal y presiona{' '}
-                  <strong className="text-white">"Iniciar Set {nextSetNumber}"</strong>.
+                <p className="text-[10px] text-zinc-400">
+                  Tú como juez tienes la decisión final y absoluta. Si prefieren jugar set de desempate, cancela y presiona <strong className="text-white">"Iniciar Set {nextSetNumber}"</strong>.
                 </p>
               </div>
             )}
