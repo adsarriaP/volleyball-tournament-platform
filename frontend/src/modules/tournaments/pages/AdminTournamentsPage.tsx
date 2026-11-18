@@ -118,9 +118,9 @@ export const AdminTournamentsPage: React.FC = () => {
     const maxTeams = Number(form.maxTeams);
     const groupsCount = Number(form.groupsCount);
     const qualifiersPerGroup = Number(form.qualifiersPerGroup);
-    const pointsRegularSet = Number(form.pointsRegularSet);
-    const pointsFinalSet = Number(form.pointsFinalSet);
-    const pointsDifference = Number(form.pointsDifference);
+    const pointsRegularSet = Number(form.pointsRegularSet) || 25;
+    const pointsFinalSet = Number(form.pointsFinalSet) || 15;
+    const pointsDifference = Number(form.pointsDifference) || 2;
     const dailyStartHour = Number(form.dailyStartHour);
     const dailyEndHour = Number(form.dailyEndHour);
 
@@ -132,15 +132,6 @@ export const AdminTournamentsPage: React.FC = () => {
     }
     if (!Number.isInteger(qualifiersPerGroup) || qualifiersPerGroup < 1) {
       throw new Error('Los clasificados por grupo deben ser al menos 1.');
-    }
-    if (!Number.isInteger(pointsRegularSet) || pointsRegularSet < 5) {
-      throw new Error('Los puntos por set regular deben ser al menos 5.');
-    }
-    if (!Number.isInteger(pointsFinalSet) || pointsFinalSet < 5) {
-      throw new Error('Los puntos del set decisivo deben ser al menos 5.');
-    }
-    if (!Number.isInteger(pointsDifference) || pointsDifference < 1) {
-      throw new Error('La diferencia mínima de puntos debe ser al menos 1.');
     }
     if (
       !Number.isInteger(dailyStartHour) ||
@@ -571,67 +562,6 @@ export const AdminTournamentsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Reglas de Puntos (el juez define la cantidad de sets en cancha) */}
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">
-                    Pts Set
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    required
-                    value={form.pointsRegularSet}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        pointsRegularSet: sanitizeNumericInput(e.target.value),
-                      })
-                    }
-                    placeholder="25"
-                    className="w-full px-2 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white font-bold text-center"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">
-                    Pts Desempate
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    required
-                    value={form.pointsFinalSet}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        pointsFinalSet: sanitizeNumericInput(e.target.value),
-                      })
-                    }
-                    placeholder="15"
-                    className="w-full px-2 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white font-bold text-center"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">
-                    Dif. Mínima
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    required
-                    value={form.pointsDifference}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        pointsDifference: sanitizeNumericInput(e.target.value),
-                      })
-                    }
-                    placeholder="2"
-                    className="w-full px-2 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white font-bold text-center"
-                  />
-                </div>
-              </div>
-
               {/* Fechas con CustomDatePicker responsive */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <CustomDatePicker
@@ -866,10 +796,9 @@ export const AdminTournamentsPage: React.FC = () => {
                           </span>
                         </div>
                         <div className="px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800">
-                          <span className="text-zinc-500 block">Reglas</span>
+                          <span className="text-zinc-500 block">Puntuación</span>
                           <span className="font-black text-white">
-                            Sets libres ({t.pointsRegularSet}/
-                            {t.pointsFinalSet})
+                            Criterio del Juez
                           </span>
                         </div>
                         <div className="px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800">
